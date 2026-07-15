@@ -1,7 +1,9 @@
--- Moto Trip Planner — initial schema
--- Staged 2026-07-10. NOT yet executed: run via `npx supabase db reset` at build
--- start and verify RLS as anon / rider / curator before any hosted push.
--- Design rationale: brief/moto-trip-planner-data-model-v1.md
+-- Wayborne — initial schema
+-- Staged 2026-07-10; geography(4326) delta applied 2026-07-14 per
+-- research/wayborne-stack-validation-v1.md. Executed against the hosted
+-- project (ptfrcvbhokfbjftjxjfn) 2026-07-15; RLS verified as anon / rider /
+-- curator, 18/18 checks passed.
+-- Design rationale: brief/wayborne-data-model-v1.md (project folder)
 
 create extension if not exists postgis;
 
