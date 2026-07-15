@@ -121,6 +121,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Focus-visible treatment (core-planning-flow 2.5): every interactive
+     element shows a high-contrast ring, not only inputs. */
+  :focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 2px;
+  }
   body {
     @apply bg-background text-foreground;
   }

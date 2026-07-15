@@ -9,11 +9,11 @@
 
 ## 2. Explore surface
 
-- [ ] 2.1 Add `maplibre-gl` as a dynamically imported client island with the Stadia style URL from env; loading state per web-build standards
-- [ ] 2.2 Render kept segments as character-styled GeoJSON overlays; stops as category symbol layers
-- [ ] 2.3 Filters with URL-reflected state; zero-results states (computable explanation + plain fallback copy)
-- [ ] 2.4 Editorial cards: blurb, tags, warnings, single-state `researched` badge, zero-state verification progress bar
-- [ ] 2.5 Focus-visible treatment applied across all explore interactive elements
+- [x] 2.1 Add `maplibre-gl` as a dynamically imported client island with the Stadia style URL from env; loading state per web-build standards
+- [x] 2.2 Render kept segments as character-styled GeoJSON overlays; stops as category symbol layers
+- [x] 2.3 Filters with URL-reflected state; zero-results states (computable explanation + plain fallback copy)
+- [x] 2.4 Editorial cards: blurb, tags, warnings, single-state `researched` badge, zero-state verification progress bar
+- [x] 2.5 Focus-visible treatment applied across all explore interactive elements
 
 ## 3. Frame and tray
 
