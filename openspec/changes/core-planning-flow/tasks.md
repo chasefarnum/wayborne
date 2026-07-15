@@ -2,7 +2,7 @@
 
 ## 1. Decisions and data foundation
 
-- [ ] 1.1 Resolve design.md Open Questions 1 (frame-to-proposal seam) and 2 (tray ruler scope) with Chase; record both in the decision log
+- [x] 1.1 Resolve design.md Open Questions 1 (frame-to-proposal seam) and 2 (tray ruler scope) with Chase; record both in the decision log
 - [ ] 1.2 Confirm the executed schema is live and RLS-verified (phase-2 step 4 prerequisite); regenerate types with `npx supabase gen types typescript` into `src/lib/database.types.ts`
 - [ ] 1.3 Add `@supabase/supabase-js` + `@supabase/ssr`; create server and browser client helpers; env vars documented in `.env.example`
 - [ ] 1.4 Seed region 01 (region row + curated segments/stops from `curation/region-01-catskills-hudson-valley/`) into the Supabase project; verify anon reads return only kept content

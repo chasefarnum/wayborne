@@ -27,6 +27,8 @@ Standing geo rules (from stack validation, not preference): ST_DWithin only — 
 4. **State in the URL where the wireframe implies deep-linking.** Active filters, selected stop/segment, and frame values reflect into query params so explore states are shareable and back-button safe.
 5. **Warning furniture is one component family.** Fuel gaps, enforcement, and closures share the same warn primitive (per Gate 1: "same warning furniture"); the day rail's compact ▲ flag is a variant, not a second pattern.
 6. **Routing is not wired in this change.** Connector legs between tray items display as straight-line placeholders with mileage from curation data; Stadia Valhalla wiring (with the dozen-leg `use_highways` Catskills test) lands with routing work, keeping this slice honest about what is computed vs illustrative.
+7. **Frame-to-proposal seam: explore-first stays deliberate** (decided by Chase 2026-07-15). Completing the frame lands in explore; the skeleton proposal surfaces only via the empty-trip state. A "Propose a starting loop" CTA at framing is additive later if planning data shows riders stall in explore.
+8. **Tray ruler scope: whole-trip before days exist, day-scope after** (decided by Chase 2026-07-15). The tray meter counts the trip (of 600) until "Build days" runs, then flips to the active day's scope (of 200) so the tray and assembly never show two rulers at once.
 
 ## Risks / Trade-offs
 
@@ -42,5 +44,4 @@ Schema execution and RLS verification happen before implementation (phase-2 step
 
 ## Open Questions
 
-1. **Frame-to-proposal seam (Gate 2 P2).** Does completing the frame immediately offer "Propose a starting loop", or does explore-first stay deliberate with the skeleton proposal only in the empty-trip state? Recommendation: keep explore-first for this slice (matches the curation-led mental model; the proposal CTA is additive later). Decide before the frame component is built.
-2. **Tray ruler scope (Gate 2 P2).** Tray counts the whole trip (of 600) while assembly measures per day (of 200). Recommendation: flip the tray to day-scope once days exist, whole-trip before that. Decide before the tray meter is built.
+_None. The two Gate 2 P2 seams were decided 2026-07-15 and moved to Decisions 7 and 8._
