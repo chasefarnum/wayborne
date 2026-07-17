@@ -2,15 +2,19 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { DetailCard, SegmentCard, StopCard } from "@/components/explore/cards";
 import { FilterChips } from "@/components/explore/filter-chips";
 import { VerifyProgress } from "@/components/explore/verify-progress";
+import { TrayDock } from "@/components/trip/tray-dock";
+import { useTrip } from "@/components/trip/trip-provider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { STOP_GROUPS, characterLabel, stopGroupOf } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
+import { isValidFrame } from "@/lib/trip";
+import type { TrayCatalogEntry } from "@/lib/trip";
 
 const ExploreMap = dynamic(() => import("@/components/explore/explore-map"), {
   ssr: false,
@@ -29,10 +33,12 @@ function parseList(value: string | null): string[] {
 }
 
 export function ExploreView({
+  regionSlug,
   regionName,
   segments,
   stops,
 }: {
+  regionSlug: string;
   regionName: string;
   segments: SegmentRow[];
   stops: StopRow[];
@@ -40,6 +46,7 @@ export function ExploreView({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { frame, setFrame } = useTrip();
 
   const activeCharacters = parseList(searchParams.get("ch"));
   const activeGroups = parseList(searchParams.get("stops"));
@@ -66,6 +73,42 @@ export function ExploreView({
     (sweepId: string | null) => setParams({ sel: sweepId }),
     [setParams]
   );
+
+  // Frame ↔ URL sync (design.md Decision 4): valid ?days&mi params win over
+  // the stored frame (deep-link semantics); otherwise a stored frame reflects
+  // into the URL. Mutations read localStorage truth, so items never clobber.
+  const daysParam = searchParams.get("days");
+  const miParam = searchParams.get("mi");
+  const frameDays = frame?.days ?? null;
+  const frameMiles = frame?.dailyMiles ?? null;
+  useEffect(() => {
+    const days = Number(daysParam);
+    const mi = Number(miParam);
+    if (daysParam !== null && miParam !== null && isValidFrame(days, mi)) {
+      if (days !== frameDays || mi !== frameMiles) setFrame({ days, dailyMiles: mi });
+    } else if (frameDays !== null && frameMiles !== null) {
+      setParams({ days: String(frameDays), mi: String(frameMiles) });
+    }
+  }, [daysParam, miParam, frameDays, frameMiles, setFrame, setParams]);
+
+  // Everything the tray needs to resolve a stored ref, keyed by sweep id.
+  const trayCatalog = useMemo(() => {
+    const m = new Map<string, TrayCatalogEntry>();
+    for (const s of segments) {
+      if (s.sweep_id) m.set(s.sweep_id, { kind: "segment", name: s.name, lengthMi: s.length_mi });
+    }
+    for (const s of stops) {
+      if (s.sweep_id) {
+        m.set(s.sweep_id, {
+          kind: "stop",
+          name: s.name,
+          lengthMi: null,
+          night: s.category === "dec_campground" || s.category === "private_campground",
+        });
+      }
+    }
+    return m;
+  }, [segments, stops]);
 
   // Character filters AND together: a road must carry every active tag.
   const segmentsMatching = useCallback(
@@ -267,6 +310,13 @@ export function ExploreView({
           )}
         </div>
       </div>
+
+      <TrayDock
+        regionSlug={regionSlug}
+        catalog={trayCatalog}
+        selectedId={selectedId}
+        onSelectAction={select}
+      />
     </div>
   );
 }

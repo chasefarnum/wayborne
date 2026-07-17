@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ExploreView } from "@/components/explore/explore-view";
+import { TripProvider } from "@/components/trip/trip-provider";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -47,10 +48,13 @@ export default async function PlanPage({
   if (stopsRes.error) throw stopsRes.error;
 
   return (
-    <ExploreView
-      regionName={region.name}
-      segments={segmentsRes.data}
-      stops={stopsRes.data}
-    />
+    <TripProvider regionSlug={region.slug}>
+      <ExploreView
+        regionSlug={region.slug}
+        regionName={region.name}
+        segments={segmentsRes.data}
+        stops={stopsRes.data}
+      />
+    </TripProvider>
   );
 }

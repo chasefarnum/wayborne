@@ -1,5 +1,6 @@
 "use client";
 
+import { useTrip } from "@/components/trip/trip-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS, characterLabel } from "@/lib/explore";
@@ -93,8 +94,8 @@ export type SelectedItem =
   | { kind: "stop"; stop: StopRow };
 
 // The explore float card (wireframe v2, Screen 3): full editorial blurb,
-// warnings on the same furniture, provenance badge. "Add to trip" arrives
-// with the tray task group.
+// warnings on the same furniture, provenance badge, add-to-trip into the
+// tray dock.
 export function DetailCard({
   selected,
   onCloseAction,
@@ -102,9 +103,12 @@ export function DetailCard({
   selected: SelectedItem;
   onCloseAction: () => void;
 }) {
+  const { items, addItem, removeItem } = useTrip();
   const isSegment = selected.kind === "segment";
   const item = isSegment ? selected.segment : selected.stop;
   const sources = item.source_urls;
+  const sweepId = item.sweep_id;
+  const inTrip = sweepId != null && items.some((i) => i.id === sweepId);
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border bg-background p-4 shadow-lg">
@@ -138,6 +142,19 @@ export function DetailCard({
       {isSegment && selected.segment.warnings && <Warn>{selected.segment.warnings}</Warn>}
       {item.seasonal_notes && <Warn>{item.seasonal_notes}</Warn>}
       {!isSegment && <Practicals practicals={selected.stop.practicals} />}
+      {sweepId != null && (
+        <div className="pt-1">
+          {inTrip ? (
+            <Button variant="ghost" size="sm" onClick={() => removeItem(sweepId)}>
+              Remove from trip
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => addItem({ id: sweepId, kind: selected.kind })}>
+              Add to trip
+            </Button>
+          )}
+        </div>
+      )}
       {sources.length > 0 && (
         <details className="text-xs text-muted-foreground">
           <summary className="cursor-pointer">Sources ({sources.length})</summary>

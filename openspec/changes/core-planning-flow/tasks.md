@@ -17,10 +17,10 @@
 
 ## 3. Frame and tray
 
-- [ ] 3.1 Frame screen (days × daily mileage), skippable, state + URL persistence; frame-as-ruler propagation
-- [ ] 3.2 Tray dock: count, running miles vs target, last-added confirmation, ride-order chips, "Build days" bridge
-- [ ] 3.3 Ruler scope behavior per the 1.1 decision; long-tray overflow behavior chosen, specced, and implemented
-- [ ] 3.4 Versioned localStorage persistence for frame + tray; restore on reload
+- [x] 3.1 Frame screen (days × daily mileage), skippable, state + URL persistence; frame-as-ruler propagation
+- [x] 3.2 Tray dock: count, running miles vs target, last-added confirmation, ride-order chips, "Build days" bridge
+- [x] 3.3 Ruler scope behavior per the 1.1 decision; long-tray overflow behavior chosen, specced, and implemented
+- [x] 3.4 Versioned localStorage persistence for frame + tray; restore on reload
 
 ## 4. Assembly
 
