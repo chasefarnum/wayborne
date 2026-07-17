@@ -24,9 +24,9 @@
 
 ## 4. Assembly
 
-- [ ] 4.1 Build-days distribution into day legs with per-day meters; move/reorder between days
-- [ ] 4.2 Warning furniture component family; fuel-gap warnings at the leg with computed gap mileage + day-rail ▲ flag
-- [ ] 4.3 Connector-leg placeholders visually distinct with estimate-labeled mileage
+- [x] 4.1 Build-days distribution into day legs with per-day meters; move/reorder between days
+- [x] 4.2 Warning furniture component family; fuel-gap warnings at the leg with computed gap mileage + day-rail ▲ flag
+- [x] 4.3 Connector-leg placeholders visually distinct with estimate-labeled mileage
 
 ## 5. Verification
 

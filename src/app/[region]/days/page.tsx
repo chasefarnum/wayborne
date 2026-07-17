@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { ExploreView } from "@/components/explore/explore-view";
+import { DaysView } from "@/components/trip/days-view";
 import { TripProvider } from "@/components/trip/trip-provider";
 import { fetchRegionContent } from "@/lib/region-content";
 
 export const metadata: Metadata = {
-  title: "Plan your ride · Wayborne",
+  title: "Build days · Wayborne",
 };
 
-export default async function PlanPage({
+// The assembly surface (wireframe v2, Screen 4): the day is the unit of
+// planning; legs end where you sleep.
+export default async function DaysPage({
   params,
 }: {
   params: Promise<{ region: string }>;
@@ -20,7 +22,7 @@ export default async function PlanPage({
 
   return (
     <TripProvider regionSlug={content.region.slug}>
-      <ExploreView
+      <DaysView
         regionSlug={content.region.slug}
         regionName={content.region.name}
         segments={content.segments}

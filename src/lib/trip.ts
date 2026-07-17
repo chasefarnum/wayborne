@@ -2,6 +2,8 @@
 // state persisted to versioned localStorage. DB-backed trips are a later
 // `trip-persistence` change.
 
+import type { SegmentRow, StopRow } from "@/lib/explore";
+
 export type TripFrame = { days: number; dailyMiles: number };
 
 export type TrayItemRef = { id: string; kind: "segment" | "stop" };
@@ -61,4 +63,134 @@ export function trayRuler(
     return { scope: "trip", currentMi: trayMiles, targetMi: tripTargetMi(frame) };
   }
   return { scope: "unframed", currentMi: trayMiles };
+}
+
+// Everything the tray or a day leg needs to resolve a stored ref. Built from
+// the region's fetched rows on both the explore and days surfaces.
+export function trayCatalogFrom(
+  segments: SegmentRow[],
+  stops: StopRow[]
+): Map<string, TrayCatalogEntry> {
+  const m = new Map<string, TrayCatalogEntry>();
+  for (const s of segments) {
+    if (s.sweep_id) m.set(s.sweep_id, { kind: "segment", name: s.name, lengthMi: s.length_mi });
+  }
+  for (const s of stops) {
+    if (s.sweep_id) {
+      m.set(s.sweep_id, {
+        kind: "stop",
+        name: s.name,
+        lengthMi: null,
+        night: s.category === "dec_campground" || s.category === "private_campground",
+      });
+    }
+  }
+  return m;
+}
+
+// Day assembly (task 4.1): days are contiguous slices of the tray's ride
+// order, stored as per-day item counts. Ride order stays the single source
+// of truth, so moving between days and reordering within one are both plain
+// list operations and the tray chips never disagree with the day legs.
+
+export type DayEntry = { lengthMi: number | null; night?: boolean };
+
+// Greedy walk in ride order: a day closes when the next road would push it
+// past the daily target, or at a night stop — legs end where you sleep.
+export function distributeDayCounts(entries: DayEntry[], dailyTargetMi: number): number[] {
+  const counts: number[] = [];
+  let count = 0;
+  let miles = 0;
+  const close = () => {
+    counts.push(count);
+    count = 0;
+    miles = 0;
+  };
+  for (const entry of entries) {
+    const mi = entry.lengthMi ?? 0;
+    if (count > 0 && mi > 0 && miles + mi > dailyTargetMi) close();
+    count += 1;
+    miles += mi;
+    if (entry.night) close();
+  }
+  if (count > 0) close();
+  return counts.length > 0 ? counts : [0];
+}
+
+export function daySlices(dayCounts: number[]): { start: number; end: number }[] {
+  const slices: { start: number; end: number }[] = [];
+  let start = 0;
+  for (const count of dayCounts) {
+    slices.push({ start, end: start + count });
+    start += count;
+  }
+  return slices;
+}
+
+export function dayIndexOf(dayCounts: number[], itemIndex: number): number {
+  return daySlices(dayCounts).findIndex((s) => itemIndex >= s.start && itemIndex < s.end);
+}
+
+// One move primitive covers both gestures: inside a day it swaps neighbors;
+// at a day edge it shifts the boundary, so the item changes days while the
+// ride order stands still. Returns null when there is nowhere to go.
+export function moveTrayItem<T>(
+  items: T[],
+  dayCounts: number[],
+  index: number,
+  dir: -1 | 1
+): { items: T[]; dayCounts: number[] } | null {
+  const day = dayIndexOf(dayCounts, index);
+  if (day === -1) return null;
+  const slice = daySlices(dayCounts)[day];
+
+  const withinDay = dir === -1 ? index > slice.start : index < slice.end - 1;
+  if (withinDay) {
+    const next = [...items];
+    const swap = index + dir;
+    [next[index], next[swap]] = [next[swap], next[index]];
+    return { items: next, dayCounts };
+  }
+
+  const neighborDay = day + dir;
+  if (neighborDay < 0 || neighborDay >= dayCounts.length) return null;
+  const counts = [...dayCounts];
+  counts[neighborDay] += 1;
+  counts[day] -= 1;
+  return { items, dayCounts: counts };
+}
+
+// Fuel-gap detection (trip-assembly spec): a run of consecutive curated roads
+// in a day with no stop planned between them. The mileage is the sum of the
+// run's curated lengths, so it is computed from curation data, never
+// illustrative. Connectors are unrouted, which makes the true distance at
+// least this; the copy says so. Threshold set so the region's benchmark gap
+// (the ~45 rural mi Margaretville-to-Walton run) triggers it.
+export const FUEL_GAP_WARN_MI = 40;
+
+export type FuelGap = { startIndex: number; miles: number };
+
+export function dayFuelGaps(
+  entries: { kind: "segment" | "stop"; lengthMi: number | null }[]
+): FuelGap[] {
+  const gaps: FuelGap[] = [];
+  let runStart = -1;
+  let runMiles = 0;
+  const closeRun = () => {
+    if (runStart >= 0 && runMiles >= FUEL_GAP_WARN_MI) {
+      gaps.push({ startIndex: runStart, miles: Math.round(runMiles) });
+    }
+    runStart = -1;
+    runMiles = 0;
+  };
+  entries.forEach((entry, i) => {
+    if (entry.kind === "segment") {
+      if (runStart < 0) runStart = i;
+      runMiles += entry.lengthMi ?? 0;
+    } else {
+      closeRun();
+    }
+  });
+  closeRun();
+  return gaps;
 }

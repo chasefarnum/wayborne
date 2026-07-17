@@ -1,17 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
 
+import { useTrip } from "@/components/trip/trip-provider";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FRAME_DAYS_MAX } from "@/lib/trip";
 import type { TripFrame } from "@/lib/trip";
-import {
-  getTripServerSnapshot,
-  getTripSnapshot,
-  mutateTrip,
-  subscribeTrip,
-} from "@/lib/trip-storage";
+import { useHydrated } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 
 const DAY_CHOICES = [2, 3, 4] as const;
@@ -19,53 +22,84 @@ const MILES_MIN = 100;
 const MILES_MAX = 400;
 const MILES_STEP = 25;
 
-// The frame screen (wireframe v2, Screen 2, mark ②③): the rider's time
-// budget, asked up front and skippable. Setting it lands in explore
-// (design.md Decision 7); skipping leaves the tray honestly unframed, no
-// silent default (trip-frame spec, "Frame skipped" scenario).
-export function FrameForm({ regionSlug }: { regionSlug: string }) {
-  const trip = useSyncExternalStore(
-    useCallback((listener: () => void) => subscribeTrip(regionSlug, listener), [regionSlug]),
-    useCallback(() => getTripSnapshot(regionSlug), [regionSlug]),
-    getTripServerSnapshot
+// The frame sheet (2026-07-17 refinement, replacing the /frame page): the
+// rider's time budget asked as a dialog over explore. Auto-opens on the first
+// unframed visit; dismissing while unframed records an honest skip, never a
+// silent default (trip-frame spec, "Frame skipped" scenario). Reopens via the
+// ?frame=1 param so Change / Set the frame stay deep-linkable.
+export function FrameSheet({
+  autoOpen = false,
+  syncFrameParams = false,
+}: {
+  autoOpen?: boolean;
+  // On explore, ?days&mi are the deep-link authority; commits reflect the new
+  // frame into those params so the URL and storage never argue.
+  syncFrameParams?: boolean;
+}) {
+  const { frame, frameSkipped, setFrame, skipFrame } = useTrip();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const hydrated = useHydrated();
+
+  const paramOpen = searchParams.get("frame") === "1";
+  const open = paramOpen || (autoOpen && hydrated && !frame && !frameSkipped);
+
+  const replaceParams = useCallback(
+    (mutate: (next: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams);
+      mutate(next);
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams]
   );
 
-  // A stored frame prefills the form; the key remounts the fields once the
-  // client snapshot lands so revisiting edits instead of resetting.
+  const commit = (next: TripFrame) => {
+    setFrame(next);
+    replaceParams((p) => {
+      p.delete("frame");
+      if (syncFrameParams) {
+        p.set("days", String(next.days));
+        p.set("mi", String(next.dailyMiles));
+      }
+    });
+  };
+
+  const dismiss = () => {
+    if (!frame) skipFrame();
+    replaceParams((p) => p.delete("frame"));
+  };
+
   return (
-    <FrameFields
-      key={trip.frame ? "stored" : "fresh"}
-      regionSlug={regionSlug}
-      storedFrame={trip.frame}
-    />
+    <Dialog open={open} onOpenChange={(next) => !next && dismiss()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>How much ride do you have?</DialogTitle>
+          <DialogDescription>
+            Answer in rider terms. This sets the ruler every day gets measured against.
+          </DialogDescription>
+        </DialogHeader>
+        <FrameFields storedFrame={frame} onSetAction={commit} onDismissAction={dismiss} />
+      </DialogContent>
+    </Dialog>
   );
 }
 
+// Mounts fresh each time the dialog opens, so the fields always prefill from
+// the frame as it stands at open time.
 function FrameFields({
-  regionSlug,
   storedFrame,
+  onSetAction,
+  onDismissAction,
 }: {
-  regionSlug: string;
   storedFrame: TripFrame | null;
+  onSetAction: (frame: TripFrame) => void;
+  onDismissAction: () => void;
 }) {
-  const router = useRouter();
   const [days, setDays] = useState(storedFrame?.days ?? 3);
   const [manyDays, setManyDays] = useState((storedFrame?.days ?? 3) > 4);
   const [miles, setMiles] = useState(storedFrame?.dailyMiles ?? 200);
-
-  const setTheFrame = () => {
-    mutateTrip(regionSlug, (t) => ({
-      ...t,
-      frame: { days, dailyMiles: miles },
-      frameSkipped: false,
-    }));
-    router.push(`/${regionSlug}/plan?days=${days}&mi=${miles}`);
-  };
-
-  const skip = () => {
-    mutateTrip(regionSlug, (t) => ({ ...t, frameSkipped: true }));
-    router.push(`/${regionSlug}/plan`);
-  };
 
   const segClasses = (active: boolean) =>
     cn(
@@ -140,11 +174,11 @@ function FrameFields({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button size="lg" onClick={setTheFrame}>
+        <Button size="lg" onClick={() => onSetAction({ days, dailyMiles: miles })}>
           Set the frame
         </Button>
-        <Button size="lg" variant="ghost" onClick={skip}>
-          Skip and ride the map
+        <Button size="lg" variant="ghost" onClick={onDismissAction}>
+          {storedFrame ? "Cancel" : "Skip and ride the map"}
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">

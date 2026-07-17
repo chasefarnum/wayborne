@@ -3,6 +3,7 @@
 import { useTrip } from "@/components/trip/trip-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Warn } from "@/components/warn";
 import { CATEGORY_LABELS, characterLabel } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
 import { cn } from "@/lib/utils";
@@ -11,15 +12,6 @@ function cardClasses(selected: boolean) {
   return cn(
     "flex w-full flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors hover:bg-accent",
     selected && "border-foreground"
-  );
-}
-
-function Warn({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs text-destructive">
-      <span aria-hidden="true">▲ </span>
-      {children}
-    </p>
   );
 }
 

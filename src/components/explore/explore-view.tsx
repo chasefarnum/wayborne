@@ -6,15 +6,15 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { DetailCard, SegmentCard, StopCard } from "@/components/explore/cards";
 import { FilterChips } from "@/components/explore/filter-chips";
+import { FrameSheet } from "@/components/frame/frame-sheet";
 import { VerifyProgress } from "@/components/explore/verify-progress";
 import { TrayDock } from "@/components/trip/tray-dock";
 import { useTrip } from "@/components/trip/trip-provider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { STOP_GROUPS, characterLabel, stopGroupOf } from "@/lib/explore";
+import { CHARACTER_TAGS, STOP_GROUPS, characterLabel, stopGroupOf } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
-import { isValidFrame } from "@/lib/trip";
-import type { TrayCatalogEntry } from "@/lib/trip";
+import { isValidFrame, trayCatalogFrom } from "@/lib/trip";
 
 const ExploreMap = dynamic(() => import("@/components/explore/explore-map"), {
   ssr: false,
@@ -92,23 +92,7 @@ export function ExploreView({
   }, [daysParam, miParam, frameDays, frameMiles, setFrame, setParams]);
 
   // Everything the tray needs to resolve a stored ref, keyed by sweep id.
-  const trayCatalog = useMemo(() => {
-    const m = new Map<string, TrayCatalogEntry>();
-    for (const s of segments) {
-      if (s.sweep_id) m.set(s.sweep_id, { kind: "segment", name: s.name, lengthMi: s.length_mi });
-    }
-    for (const s of stops) {
-      if (s.sweep_id) {
-        m.set(s.sweep_id, {
-          kind: "stop",
-          name: s.name,
-          lengthMi: null,
-          night: s.category === "dec_campground" || s.category === "private_campground",
-        });
-      }
-    }
-    return m;
-  }, [segments, stops]);
+  const trayCatalog = useMemo(() => trayCatalogFrom(segments, stops), [segments, stops]);
 
   // Character filters AND together: a road must carry every active tag.
   const segmentsMatching = useCallback(
@@ -175,16 +159,44 @@ export function ExploreView({
 
   const verifiedRoads = segments.filter((s) => s.provenance === "verified").length;
 
+  // Chip order tracks how much of the region carries each tag — the closest
+  // honest popularity proxy until riders generate real usage data. Stable
+  // sort keeps the declared order on ties.
+  const roadTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of segments) {
+      for (const tag of s.character) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    return [...CHARACTER_TAGS].sort(
+      (a, b) => (counts.get(b.value) ?? 0) - (counts.get(a.value) ?? 0)
+    );
+  }, [segments]);
+  const stopGroups = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of stops) {
+      const group = stopGroupOf(s.category);
+      if (group) counts.set(group.value, (counts.get(group.value) ?? 0) + 1);
+    }
+    return [...STOP_GROUPS].sort(
+      (a, b) => (counts.get(b.value) ?? 0) - (counts.get(a.value) ?? 0)
+    );
+  }, [stops]);
+
   const listRef = useRef<HTMLDivElement>(null);
 
+  // w-full on the page container matters: the body is a column flex and
+  // mx-auto makes this a fit-content flex item, so without an explicit width
+  // the page collapses to its widest child instead of filling to max-w-7xl.
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-lg font-semibold">{regionName}</h1>
         <VerifyProgress verified={verifiedRoads} total={segments.length} noun="roads" />
       </header>
 
       <FilterChips
+        roadTags={roadTags}
+        stopGroups={stopGroups}
         activeCharacters={activeCharacters}
         activeGroups={activeGroups}
         onToggleCharacterAction={(v) => toggle("ch", activeCharacters, v)}
@@ -316,7 +328,10 @@ export function ExploreView({
         catalog={trayCatalog}
         selectedId={selectedId}
         onSelectAction={select}
+        onEditFrameAction={() => setParams({ frame: "1" })}
       />
+
+      <FrameSheet autoOpen syncFrameParams />
     </div>
   );
 }

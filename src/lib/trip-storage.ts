@@ -14,9 +14,17 @@ export type StoredTrip = {
   frame: TripFrame | null;
   frameSkipped: boolean;
   items: TrayItemRef[];
+  // Contiguous partition of `items` into day legs, as per-day counts; null
+  // until "Build days" runs. Invariant: the counts sum to items.length.
+  dayCounts: number[] | null;
 };
 
-export const EMPTY_TRIP: StoredTrip = { frame: null, frameSkipped: false, items: [] };
+export const EMPTY_TRIP: StoredTrip = {
+  frame: null,
+  frameSkipped: false,
+  items: [],
+  dayCounts: null,
+};
 
 function storageKey(regionSlug: string): string {
   return `wayborne:trip:${VERSION}:${regionSlug}`;
@@ -26,7 +34,7 @@ function parseTrip(raw: string): StoredTrip | null {
   try {
     const data: unknown = JSON.parse(raw);
     if (typeof data !== "object" || data === null) return null;
-    const { frame, frameSkipped, items } = data as Record<string, unknown>;
+    const { frame, frameSkipped, items, dayCounts } = data as Record<string, unknown>;
 
     let parsedFrame: TripFrame | null = null;
     if (frame !== null && frame !== undefined) {
@@ -52,7 +60,22 @@ function parseTrip(raw: string): StoredTrip | null {
       parsedItems.push({ id: i.id, kind: i.kind });
     }
 
-    return { frame: parsedFrame, frameSkipped: frameSkipped === true, items: parsedItems };
+    // Day counts must still partition the items exactly (item validation above
+    // can prune rows); anything off drops the days, never the tray.
+    let parsedDayCounts: number[] | null = null;
+    if (Array.isArray(dayCounts)) {
+      const valid =
+        dayCounts.every((c) => Number.isInteger(c) && (c as number) >= 0) &&
+        dayCounts.reduce((sum: number, c) => sum + (c as number), 0) === parsedItems.length;
+      if (valid) parsedDayCounts = dayCounts as number[];
+    }
+
+    return {
+      frame: parsedFrame,
+      frameSkipped: frameSkipped === true,
+      items: parsedItems,
+      dayCounts: parsedDayCounts,
+    };
   } catch {
     return null;
   }
