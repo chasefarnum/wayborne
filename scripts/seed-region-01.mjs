@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import { segments } from "./seed/region-01-segments.mjs";
 import { stops } from "./seed/region-01-stops.mjs";
+import { stopCoords } from "./seed/region-01-stop-coords.mjs";
 
 const REGION = {
   number: 1,
@@ -84,9 +85,13 @@ function segmentRow(regionId, s) {
 }
 
 function stopRow(regionId, s) {
+  // Geocoded coordinates (Overture, store-friendly) ride in as EWKT; the
+  // geography column parses it. Unmatched stops stay null and off the map.
+  const coords = stopCoords[s.sweep_id];
   return {
     region_id: regionId,
     sweep_id: s.sweep_id,
+    geom: coords ? `SRID=4326;POINT(${coords.lon} ${coords.lat})` : null,
     name: s.name,
     category: s.category,
     town: s.town ?? null,

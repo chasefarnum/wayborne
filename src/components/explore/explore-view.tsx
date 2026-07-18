@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { DetailCard, SegmentCard, StopCard } from "@/components/explore/cards";
@@ -43,7 +43,6 @@ export function ExploreView({
   segments: SegmentRow[];
   stops: StopRow[];
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { frame, setFrame } = useTrip();
@@ -60,9 +59,12 @@ export function ExploreView({
         else next.delete(key);
       }
       const qs = next.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      // Shallow by design: filters and selection are client-side URL state, so
+      // the native History API (which the Next router tracks) skips the
+      // router.replace server round-trip that lags chip clicks in dev.
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
-    [router, pathname, searchParams]
+    [pathname, searchParams]
   );
 
   const toggle = (key: "ch" | "stops", list: string[], value: string) => {
@@ -183,6 +185,11 @@ export function ExploreView({
   }, [stops]);
 
   const listRef = useRef<HTMLDivElement>(null);
+  // Stops emphasis (2026-07-17 rider feedback: "all I'm seeing is really cool
+  // rides"): announce the stops count at the top of the list with a jump to
+  // the section. The full answer is the along-route mode; this is the honest
+  // minimum while stops sit below the roads list.
+  const stopsHeaderRef = useRef<HTMLDivElement>(null);
 
   // w-full on the page container matters: the body is a column flex and
   // mx-auto makes this a fit-content flex item, so without an explicit width
@@ -212,7 +219,13 @@ export function ExploreView({
             <h2 className="text-sm font-semibold">
               {filteredSegments.length} {filteredSegments.length === 1 ? "road" : "roads"} match
             </h2>
-            <span className="text-xs text-muted-foreground">sorted by sub-area</span>
+            <button
+              type="button"
+              onClick={() => stopsHeaderRef.current?.scrollIntoView({ block: "start" })}
+              className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+            >
+              {`${filteredStops.length} ${filteredStops.length === 1 ? "stop" : "stops"} ↓`}
+            </button>
           </div>
 
           {filteredSegments.length === 0 ? (
@@ -267,7 +280,7 @@ export function ExploreView({
             ))
           )}
 
-          <div className="mt-2 flex items-baseline justify-between">
+          <div ref={stopsHeaderRef} className="mt-2 flex scroll-mt-2 items-baseline justify-between">
             <h2 className="text-sm font-semibold">
               {filteredStops.length} {filteredStops.length === 1 ? "stop" : "stops"}
             </h2>

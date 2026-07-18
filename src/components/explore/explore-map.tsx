@@ -45,8 +45,12 @@ export default function ExploreMap({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [loaded, setLoaded] = useState(false);
 
+  // Latest-callback ref, written in an effect (react-hooks/refs bans render
+  // writes); map click handlers read it at event time, after effects run.
   const onSelectRef = useRef(onSelectAction);
-  onSelectRef.current = onSelectAction;
+  useEffect(() => {
+    onSelectRef.current = onSelectAction;
+  }, [onSelectAction]);
 
   const segmentData = useMemo<FeatureCollection>(
     () => ({

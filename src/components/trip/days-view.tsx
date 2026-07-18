@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Fragment, useCallback, useMemo } from "react";
 
 import { FrameSheet } from "@/components/frame/frame-sheet";
@@ -55,7 +55,6 @@ export function DaysView({
   stops: StopRow[];
 }) {
   const trip = useTrip();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hydrated = useHydrated();
@@ -68,9 +67,11 @@ export function DaysView({
         else next.delete(key);
       }
       const qs = next.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      // Shallow by design, same as explore: day/frame params are client-side
+      // URL state, no server data depends on them.
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
-    [router, pathname, searchParams]
+    [pathname, searchParams]
   );
 
   const segmentsById = useMemo(() => {

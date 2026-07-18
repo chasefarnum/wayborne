@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { useTrip } from "@/components/trip/trip-provider";
@@ -37,7 +37,6 @@ export function FrameSheet({
   syncFrameParams?: boolean;
 }) {
   const { frame, frameSkipped, setFrame, skipFrame } = useTrip();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hydrated = useHydrated();
@@ -50,9 +49,11 @@ export function FrameSheet({
       const next = new URLSearchParams(searchParams);
       mutate(next);
       const qs = next.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      // Shallow by design: the ?frame and ?days&mi params are client-side URL
+      // state, and the native History API keeps useSearchParams in sync.
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
-    [router, pathname, searchParams]
+    [pathname, searchParams]
   );
 
   const commit = (next: TripFrame) => {

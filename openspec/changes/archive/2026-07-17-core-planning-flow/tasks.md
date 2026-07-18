@@ -30,7 +30,7 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Component tests for frame math, tray meter scope, day distribution, and localStorage versioning (nextjs-frontend-testing)
-- [ ] 5.2 Keyboard pass: focus-visible on every interactive element in the flow
-- [ ] 5.3 End-to-end flow check against wireframe v2 (The Flow + States) with real region-01 data; all five states per surface render
-- [ ] 5.4 Gamed-pass inspection + fresh-eyes verification per web-build-standards Code Discipline before calling the change done
+- [x] 5.1 Component tests for frame math, tray meter scope, day distribution, and localStorage versioning (nextjs-frontend-testing)
+- [x] 5.2 Keyboard pass: focus-visible on every interactive element in the flow
+- [x] 5.3 End-to-end flow check against wireframe v2 (The Flow + States) with real region-01 data; all five states per surface render
+- [x] 5.4 Gamed-pass inspection + fresh-eyes verification per web-build-standards Code Discipline before calling the change done

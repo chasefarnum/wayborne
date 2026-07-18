@@ -134,19 +134,34 @@ export function TrayDock({
             className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1"
           >
             {resolved.map((item) => (
-              <button
+              // Two buttons in one pill (never nested buttons): select on the
+              // name, remove on the ✕ — remove no longer lives only inside
+              // the detail card (2026-07-17 rider feedback).
+              <span
                 key={item.id}
-                type="button"
-                aria-pressed={item.id === selectedId}
-                onClick={() => onSelectAction(item.id)}
                 className={cn(
-                  "shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs transition-colors hover:bg-accent",
+                  "flex shrink-0 items-center overflow-hidden whitespace-nowrap rounded-full border text-xs",
                   item.id === selectedId && "border-foreground"
                 )}
               >
-                {item.night && <span aria-hidden="true">⌂ </span>}
-                {item.name}
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={item.id === selectedId}
+                  onClick={() => onSelectAction(item.id)}
+                  className="py-1 pl-2.5 pr-1.5 transition-colors hover:bg-accent"
+                >
+                  {item.night && <span aria-hidden="true">⌂ </span>}
+                  {item.name}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.name} from the trip`}
+                  onClick={() => trip.removeItem(item.id)}
+                  className="py-1 pl-1 pr-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </span>
             ))}
           </div>
         )}

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { SegmentRow, StopRow } from "@/lib/explore";
 
 // One fetch shape for every planning surface (explore, days). RLS is the
 // access gate: the anon server client only ever sees kept, open content in
@@ -17,19 +18,25 @@ export async function fetchRegionContent(regionSlug: string) {
     supabase
       .from("road_segments")
       .select(
-        "id, sweep_id, name, route_desc, length_mi, sub_area, character, blurb, warnings, seasonal_notes, provenance, source_urls, geom"
+        // geom:geojson is the computed GeoJSON column (migration 00003); the
+        // raw geography column serializes as WKB hex, which the map can't use.
+        "id, sweep_id, name, route_desc, length_mi, sub_area, character, blurb, warnings, seasonal_notes, provenance, source_urls, geom:geojson"
       )
       .eq("region_id", region.id)
       .order("sub_area")
-      .order("name"),
+      .order("name")
+      // The computed column isn't in the generated types; the row shape is
+      // pinned here instead (geom arrives as GeoJSON json).
+      .overrideTypes<SegmentRow[]>(),
     supabase
       .from("stops")
       .select(
-        "id, sweep_id, name, category, town, blurb, rider_signal, practicals, seasonal_notes, provenance, source_urls, geom"
+        "id, sweep_id, name, category, town, blurb, rider_signal, practicals, seasonal_notes, provenance, source_urls, geom:geojson"
       )
       .eq("region_id", region.id)
       .order("category")
-      .order("name"),
+      .order("name")
+      .overrideTypes<StopRow[]>(),
   ]);
   if (segmentsRes.error) throw segmentsRes.error;
   if (stopsRes.error) throw stopsRes.error;
