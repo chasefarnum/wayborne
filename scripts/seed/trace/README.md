@@ -1,11 +1,29 @@
-# Segment tracing prototype — region 01
+# Segment tracing — region 01
 
-Proves the query+match+stitch pattern on 3 of the 47 curated roads before
-scaling. Source: Overture Maps transportation theme, `type=segment`, release
+Proved on 3 hard-case roads by `prototype-trace.mjs` (2026-07-18), then
+scaled to all 50 seeded roads by `trace-region-01.mjs` (same session).
+Source: Overture Maps transportation theme, `type=segment`, release
 2026-06-17.0 (same store-friendly release the stops geocoding used). Nothing
-here touches the database or the seed files; output is
-`prototype-traces.geojson` next to this file, produced by
-`node scripts/seed/trace/prototype-trace.mjs`.
+here touches the database or the seed files; canonical output is
+`region-01-traces.geojson` next to this file.
+
+Scale-out files:
+
+- `trace-region-01.mjs` — all-50 tracer (subset runs: pass sweep_ids as
+  args; merges into the output file). Engine additions over the prototype:
+  terminal anchors (corridor ends with no crossing route), filler segments
+  at 4x weight (bridges municipal name handoffs without wandering), and
+  continue-on-failure.
+- `probe-corridors.mjs` — per-corridor name/ref/mileage inventory for the
+  county roads; feeds the name lists in the tracer configs.
+- `region-01-traces.geojson` — canonical traced output, per-feature
+  provenance (match method, Overture segment ids, length check, anchors).
+
+**Parquet west edge is now -75.5** (was -75.3): NY-10 (r-015) reaches
+Deposit at lon -75.42, outside the old window. The download query below
+carries the new edge. Also add
+`SET http_timeout = 120000; SET http_retries = 6;` before the COPY: the
+plain query hit an S3 GET timeout once.
 
 ## Local parquet (one S3 pass, then everything local)
 
@@ -20,7 +38,7 @@ COPY (
   FROM read_parquet('s3://overturemaps-us-west-2/release/2026-06-17.0/theme=transportation/type=segment/*.parquet')
   WHERE subtype = 'road'
     AND class IN ('motorway','trunk','primary','secondary','tertiary','unclassified','residential')
-    AND bbox.xmin >= -75.3 AND bbox.xmax <= -73.3
+    AND bbox.xmin >= -75.5 AND bbox.xmax <= -73.3
     AND bbox.ymin >= 41.0  AND bbox.ymax <= 42.6
 ) TO '<scratchpad>/overture-transport-region01.parquet' (FORMAT parquet, COMPRESSION zstd);
 ```
