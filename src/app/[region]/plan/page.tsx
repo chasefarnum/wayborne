@@ -23,6 +23,7 @@ export default async function PlanPage({
       <ExploreView
         regionSlug={content.region.slug}
         regionName={content.region.name}
+        regionId={content.region.id}
         segments={content.segments}
         stops={content.stops}
       />

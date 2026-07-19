@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       profiles: {
@@ -708,6 +683,31 @@ export type Database = {
             }
             Returns: string
           }
+      content_near_route: {
+        Args: { line: Json; radius_m?: number; region: string }
+        Returns: {
+          along_pos: number
+          blurb: string
+          category: string
+          character: string[]
+          geom: Json
+          id: string
+          item_type: string
+          length_mi: number
+          name: string
+          off_line_m: number
+          practicals: Json
+          provenance: string
+          rider_signal: string
+          route_desc: string
+          seasonal_notes: string
+          source_urls: string[]
+          sub_area: string
+          sweep_id: string
+          town: string
+          warnings: string
+        }[]
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
@@ -741,6 +741,15 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      geojson:
+        | {
+            Args: { r: Database["public"]["Tables"]["road_segments"]["Row"] }
+            Returns: Json
+          }
+        | {
+            Args: { s: Database["public"]["Tables"]["stops"]["Row"] }
+            Returns: Json
+          }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }
@@ -1642,9 +1651,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       confidence: ["low", "medium", "high"],

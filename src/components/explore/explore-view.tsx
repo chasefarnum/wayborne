@@ -2,10 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AlongRouteList, IntentChips } from "@/components/explore/along-route";
 import { DetailCard, SegmentCard, StopCard } from "@/components/explore/cards";
 import { FilterChips } from "@/components/explore/filter-chips";
+import { RouteEntry } from "@/components/explore/route-entry";
 import { FrameSheet } from "@/components/frame/frame-sheet";
 import { VerifyProgress } from "@/components/explore/verify-progress";
 import { TrayDock } from "@/components/trip/tray-dock";
@@ -14,7 +16,22 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CHARACTER_TAGS, STOP_GROUPS, characterLabel, stopGroupOf } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
+import { contentNearRoute } from "@/lib/region-content.client";
+import type { CorridorRow } from "@/lib/region-content.client";
+import {
+  corridorNotes,
+  fetchRoutedLine,
+  lineLengthMi,
+  orderRows,
+  parseGpx,
+  rowMatchesIntent,
+  simplifyLine,
+} from "@/lib/route";
+import type { LonLat } from "@/lib/route";
+import { createClient } from "@/lib/supabase/client";
 import { isValidFrame, trayCatalogFrom } from "@/lib/trip";
+import { useHydrated } from "@/lib/use-hydrated";
+import { useRoute } from "@/lib/use-route";
 
 const ExploreMap = dynamic(() => import("@/components/explore/explore-map"), {
   ssr: false,
@@ -32,14 +49,32 @@ function parseList(value: string | null): string[] {
   return value ? value.split(",").filter(Boolean) : [];
 }
 
+type EntryState = {
+  start: LonLat | null;
+  end: LonLat | null;
+  status: "tapping" | "routing" | "failed";
+  gpxUnreadable: boolean;
+};
+
+const FRESH_ENTRY: EntryState = {
+  start: null,
+  end: null,
+  status: "tapping",
+  gpxUnreadable: false,
+};
+
+type CorridorState = { status: "loading" | "error" | "ready"; rows: CorridorRow[] };
+
 export function ExploreView({
   regionSlug,
   regionName,
+  regionId,
   segments,
   stops,
 }: {
   regionSlug: string;
   regionName: string;
+  regionId: string;
   segments: SegmentRow[];
   stops: StopRow[];
 }) {
@@ -76,6 +111,157 @@ export function ExploreView({
     [setParams]
   );
 
+  // --- Route mode state ----------------------------------------------------
+
+  const hydrated = useHydrated();
+  const { route, setRoute, clearRoute } = useRoute(regionSlug);
+  const routeActive = hydrated && route !== null;
+
+  const [entry, setEntry] = useState<EntryState | null>(null);
+  // Whole-region escape (state H): catalog surface, route retained.
+  const [wholeRegion, setWholeRegion] = useState(false);
+  // Intent chips: none active by default, every new route starts clean.
+  const [activeIntents, setActiveIntents] = useState<string[]>([]);
+
+  const entryOpen = entry !== null;
+  const routeMode = routeActive && !entryOpen && !wholeRegion;
+
+  // The URL carries a route-mode flag only (never the line): shallow
+  // replaceState, and a stale ?route=1 with no stored route cleans itself up.
+  const routeParam = searchParams.get("route");
+  useEffect(() => {
+    if (!hydrated) return;
+    if (route && routeParam !== "1") setParams({ route: "1" });
+    else if (!route && routeParam !== null) setParams({ route: null });
+  }, [hydrated, route, routeParam, setParams]);
+
+  // Per-route UI state resets when the line changes or clears: derived
+  // during render (prev-value compare), not in an effect.
+  const line = route?.line ?? null;
+  const [prevLine, setPrevLine] = useState(line);
+  if (prevLine !== line) {
+    setPrevLine(line);
+    setActiveIntents([]);
+    setWholeRegion(false);
+  }
+
+  // --- Corridor query ------------------------------------------------------
+
+  // The result is keyed by the line it answered; a result for a different
+  // line derives as loading, so the list never shows stale or blank while
+  // the RPC is in flight.
+  const supabase = useMemo(() => createClient(), []);
+  const [corridorResult, setCorridorResult] = useState<
+    (CorridorState & { line: GeoJSON.LineString }) | null
+  >(null);
+  useEffect(() => {
+    if (!line) return;
+    let stale = false;
+    contentNearRoute(supabase, regionId, line)
+      .then((rows) => {
+        if (!stale) setCorridorResult({ line, status: "ready", rows });
+      })
+      .catch(() => {
+        if (!stale) setCorridorResult({ line, status: "error", rows: [] });
+      });
+    return () => {
+      stale = true;
+    };
+  }, [line, regionId, supabase]);
+  const corridor: CorridorState = useMemo(
+    () =>
+      corridorResult && corridorResult.line === line
+        ? corridorResult
+        : { status: "loading", rows: [] },
+    [corridorResult, line]
+  );
+
+  const orderedAll = useMemo(
+    () =>
+      route && corridor.status === "ready" ? orderRows(corridor.rows, route.lengthMi) : [],
+    [route, corridor]
+  );
+  const notes = useMemo(
+    () => corridorNotes(orderedAll, route?.lengthMi ?? 0),
+    [orderedAll, route?.lengthMi]
+  );
+  const visibleRows = useMemo(
+    () =>
+      activeIntents.length === 0
+        ? orderedAll
+        : orderedAll.filter((r) => rowMatchesIntent(r.row, activeIntents)),
+    [orderedAll, activeIntents]
+  );
+  // Map dimming follows the visible rows, so chip filters swap list and pins
+  // in the same render (one beat) and the map never contradicts the list.
+  const corridorIds = useMemo(() => {
+    if (!routeMode) return null;
+    const ids = new Set<string>();
+    for (const r of visibleRows) if (r.row.sweep_id) ids.add(r.row.sweep_id);
+    return ids;
+  }, [routeMode, visibleRows]);
+
+  // --- Route entry ---------------------------------------------------------
+
+  const startRouting = useCallback(
+    async (start: LonLat, end: LonLat) => {
+      setEntry({ start, end, status: "routing", gpxUnreadable: false });
+      try {
+        const routed = await fetchRoutedLine(start, end);
+        setRoute({
+          line: routed.line,
+          source: "tap",
+          lengthMi: routed.lengthMi,
+          start,
+          end,
+          name: null,
+        });
+        setEntry(null);
+      } catch {
+        // Taps kept, plain message, retry and GPX offered; never a fake line.
+        setEntry({ start, end, status: "failed", gpxUnreadable: false });
+      }
+    },
+    [setRoute]
+  );
+
+  const onMapTap = useCallback(
+    (at: LonLat) => {
+      if (!entry || entry.status === "routing" || entry.status === "failed") return;
+      if (!entry.start) {
+        setEntry({ ...entry, start: at, gpxUnreadable: false });
+        return;
+      }
+      void startRouting(entry.start, at);
+    },
+    [entry, startRouting]
+  );
+
+  const onGpxFile = useCallback(
+    async (file: File) => {
+      const text = await file.text();
+      const parsed = parseGpx(text);
+      if (!parsed) {
+        setEntry((e) => ({ ...(e ?? FRESH_ENTRY), gpxUnreadable: true }));
+        return;
+      }
+      const simplified = simplifyLine(parsed);
+      setRoute({
+        line: simplified,
+        source: "gpx",
+        lengthMi: lineLengthMi(simplified.coordinates as LonLat[]),
+        start: null,
+        end: null,
+        name: file.name,
+      });
+      setEntry(null);
+    },
+    [setRoute]
+  );
+
+  // Everything the tray needs to resolve a stored ref, keyed by sweep id.
+  const trayCatalog = useMemo(() => trayCatalogFrom(segments, stops), [segments, stops]);
+
   // Frame ↔ URL sync (design.md Decision 4): valid ?days&mi params win over
   // the stored frame (deep-link semantics); otherwise a stored frame reflects
   // into the URL. Mutations read localStorage truth, so items never clobber.
@@ -92,9 +278,6 @@ export function ExploreView({
       setParams({ days: String(frameDays), mi: String(frameMiles) });
     }
   }, [daysParam, miParam, frameDays, frameMiles, setFrame, setParams]);
-
-  // Everything the tray needs to resolve a stored ref, keyed by sweep id.
-  const trayCatalog = useMemo(() => trayCatalogFrom(segments, stops), [segments, stops]);
 
   // Character filters AND together: a road must carry every active tag.
   const segmentsMatching = useCallback(
@@ -191,6 +374,10 @@ export function ExploreView({
   // minimum while stops sit below the roads list.
   const stopsHeaderRef = useRef<HTMLDivElement>(null);
 
+  const routeLabel = route
+    ? `${route.name ?? "Your route"} · ${Math.round(route.lengthMi)} mi`
+    : null;
+
   // w-full on the page container matters: the body is a column flex and
   // mx-auto makes this a fit-content flex item, so without an explicit width
   // the page collapses to its widest child instead of filling to max-w-7xl.
@@ -198,137 +385,228 @@ export function ExploreView({
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-lg font-semibold">{regionName}</h1>
-        <VerifyProgress verified={verifiedRoads} total={segments.length} noun="roads" />
+        {routeMode ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">{routeLabel}</span>
+            <Button size="sm" variant="ghost" onClick={() => setEntry(FRESH_ENTRY)}>
+              Edit route
+            </Button>
+            <Button size="sm" variant="ghost" onClick={clearRoute}>
+              Clear
+            </Button>
+          </div>
+        ) : (
+          <VerifyProgress verified={verifiedRoads} total={segments.length} noun="roads" />
+        )}
       </header>
 
-      <FilterChips
-        roadTags={roadTags}
-        stopGroups={stopGroups}
-        activeCharacters={activeCharacters}
-        activeGroups={activeGroups}
-        onToggleCharacterAction={(v) => toggle("ch", activeCharacters, v)}
-        onToggleGroupAction={(v) => toggle("stops", activeGroups, v)}
-      />
+      {/* The route CTA is the new front door, not a takeover: riders without
+          a line browse exactly as today. */}
+      {!entryOpen && !routeActive && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+          <p className="text-sm">
+            <span className="font-semibold">Riding through?</span>{" "}
+            <span className="text-muted-foreground">
+              Drop your route and see what&apos;s worth pulling over for.
+            </span>
+          </p>
+          <Button size="sm" onClick={() => setEntry(FRESH_ENTRY)}>
+            Drop your route
+          </Button>
+        </div>
+      )}
+
+      {/* Whole-region escape (state H): catalog surface, route saved. */}
+      {routeActive && wholeRegion && !entryOpen && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+          <p className="text-sm">
+            <span className="font-semibold">Showing the whole region.</span>{" "}
+            <span className="text-muted-foreground">{routeLabel} is saved.</span>
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setWholeRegion(false)}>
+            Back to your route
+          </Button>
+        </div>
+      )}
+
+      {entryOpen ? null : routeMode ? (
+        <IntentChips
+          active={activeIntents}
+          onToggleAction={(v) =>
+            setActiveIntents((prev) =>
+              prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
+            )
+          }
+        />
+      ) : (
+        <FilterChips
+          roadTags={roadTags}
+          stopGroups={stopGroups}
+          activeCharacters={activeCharacters}
+          activeGroups={activeGroups}
+          onToggleCharacterAction={(v) => toggle("ch", activeCharacters, v)}
+          onToggleGroupAction={(v) => toggle("stops", activeGroups, v)}
+        />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
         <div
           ref={listRef}
           className="flex flex-col gap-3 lg:max-h-[calc(100vh-14rem)] lg:overflow-y-auto lg:pr-1"
         >
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold">
-              {filteredSegments.length} {filteredSegments.length === 1 ? "road" : "roads"} match
-            </h2>
-            <button
-              type="button"
-              onClick={() => stopsHeaderRef.current?.scrollIntoView({ block: "start" })}
-              className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
-            >
-              {`${filteredStops.length} ${filteredStops.length === 1 ? "stop" : "stops"} ↓`}
-            </button>
-          </div>
+          {entryOpen ? (
+            <RouteEntry
+              status={entry.status === "tapping" ? "tapping" : entry.status}
+              gpxUnreadable={entry.gpxUnreadable}
+              onGpxFileAction={(file) => void onGpxFile(file)}
+              onRetryAction={() => {
+                if (entry.start && entry.end) void startRouting(entry.start, entry.end);
+              }}
+              onResetTapsAction={() => setEntry(FRESH_ENTRY)}
+              onBackAction={() => setEntry(null)}
+            />
+          ) : routeMode ? (
+            <AlongRouteList
+              regionName={regionName}
+              status={corridor.status}
+              rows={visibleRows}
+              notes={notes}
+              lengthMi={route?.lengthMi ?? 0}
+              filtered={activeIntents.length > 0}
+              selectedId={selectedId}
+              onSelectAction={select}
+              onShowWholeRegionAction={() => setWholeRegion(true)}
+            />
+          ) : (
+            <>
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-sm font-semibold">
+                  {filteredSegments.length} {filteredSegments.length === 1 ? "road" : "roads"} match
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => stopsHeaderRef.current?.scrollIntoView({ block: "start" })}
+                  className="text-xs text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+                >
+                  {`${filteredStops.length} ${filteredStops.length === 1 ? "stop" : "stops"} ↓`}
+                </button>
+              </div>
 
-          {filteredSegments.length === 0 ? (
-            <div className="flex flex-col gap-3 rounded-xl border p-4">
-              {segmentRescue ? (
-                <>
-                  <p className="text-sm font-semibold">
-                    No roads match all {activeCharacters.length} filters.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Dropping {characterLabel(segmentRescue.tag as never)} brings back{" "}
-                    {segmentRescue.count} {segmentRescue.count === 1 ? "road" : "roads"}.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => toggle("ch", activeCharacters, segmentRescue.tag)}>
-                      Drop the {characterLabel(segmentRescue.tag as never)} filter
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setParams({ ch: null })}>
-                      Clear all filters
-                    </Button>
-                  </div>
-                </>
+              {filteredSegments.length === 0 ? (
+                <div className="flex flex-col gap-3 rounded-xl border p-4">
+                  {segmentRescue ? (
+                    <>
+                      <p className="text-sm font-semibold">
+                        No roads match all {activeCharacters.length} filters.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Dropping {characterLabel(segmentRescue.tag as never)} brings back{" "}
+                        {segmentRescue.count} {segmentRescue.count === 1 ? "road" : "roads"}.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => toggle("ch", activeCharacters, segmentRescue.tag)}
+                        >
+                          Drop the {characterLabel(segmentRescue.tag as never)} filter
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setParams({ ch: null })}>
+                          Clear all filters
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold">
+                        No road carries all of these at once.
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Clear the filters and start from the region&apos;s full list.
+                      </p>
+                      <div>
+                        <Button size="sm" onClick={() => setParams({ ch: null })}>
+                          Clear all filters
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ) : (
-                <>
-                  <p className="text-sm font-semibold">No road carries all of these at once.</p>
+                groupedSegments.map(([subArea, rows]) => (
+                  <section key={subArea} className="flex flex-col gap-2">
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {subArea}
+                    </h3>
+                    {rows.map((s) => (
+                      <SegmentCard
+                        key={s.id}
+                        segment={s}
+                        selected={s.sweep_id === selectedId}
+                        onSelectAction={() => select(s.sweep_id)}
+                      />
+                    ))}
+                  </section>
+                ))
+              )}
+
+              <div
+                ref={stopsHeaderRef}
+                className="mt-2 flex scroll-mt-2 items-baseline justify-between"
+              >
+                <h2 className="text-sm font-semibold">
+                  {filteredStops.length} {filteredStops.length === 1 ? "stop" : "stops"}
+                </h2>
+              </div>
+
+              {filteredStops.length === 0 ? (
+                <div className="flex flex-col gap-3 rounded-xl border p-4">
+                  <p className="text-sm font-semibold">No open stops match these filters.</p>
                   <p className="text-sm text-muted-foreground">
-                    Clear the filters and start from the region&apos;s full list.
+                    Nothing in{" "}
+                    {activeGroups
+                      .map((g) => STOP_GROUPS.find((sg) => sg.value === g)?.label ?? g)
+                      .join(" or ")}{" "}
+                    is published in this region yet.
                   </p>
                   <div>
-                    <Button size="sm" onClick={() => setParams({ ch: null })}>
-                      Clear all filters
+                    <Button size="sm" onClick={() => setParams({ stops: null })}>
+                      Clear stop filters
                     </Button>
                   </div>
-                </>
+                </div>
+              ) : (
+                groupedStops.map(([label, rows]) => (
+                  <section key={label} className="flex flex-col gap-2">
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {label}
+                    </h3>
+                    {rows.map((s) => (
+                      <StopCard
+                        key={s.id}
+                        stop={s}
+                        selected={s.sweep_id === selectedId}
+                        onSelectAction={() => select(s.sweep_id)}
+                      />
+                    ))}
+                  </section>
+                ))
               )}
-            </div>
-          ) : (
-            groupedSegments.map(([subArea, rows]) => (
-              <section key={subArea} className="flex flex-col gap-2">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {subArea}
-                </h3>
-                {rows.map((s) => (
-                  <SegmentCard
-                    key={s.id}
-                    segment={s}
-                    selected={s.sweep_id === selectedId}
-                    onSelectAction={() => select(s.sweep_id)}
-                  />
-                ))}
-              </section>
-            ))
-          )}
-
-          <div ref={stopsHeaderRef} className="mt-2 flex scroll-mt-2 items-baseline justify-between">
-            <h2 className="text-sm font-semibold">
-              {filteredStops.length} {filteredStops.length === 1 ? "stop" : "stops"}
-            </h2>
-          </div>
-
-          {filteredStops.length === 0 ? (
-            <div className="flex flex-col gap-3 rounded-xl border p-4">
-              <p className="text-sm font-semibold">No open stops match these filters.</p>
-              <p className="text-sm text-muted-foreground">
-                Nothing in{" "}
-                {activeGroups
-                  .map((g) => STOP_GROUPS.find((sg) => sg.value === g)?.label ?? g)
-                  .join(" or ")}{" "}
-                is published in this region yet.
-              </p>
-              <div>
-                <Button size="sm" onClick={() => setParams({ stops: null })}>
-                  Clear stop filters
-                </Button>
-              </div>
-            </div>
-          ) : (
-            groupedStops.map(([label, rows]) => (
-              <section key={label} className="flex flex-col gap-2">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {label}
-                </h3>
-                {rows.map((s) => (
-                  <StopCard
-                    key={s.id}
-                    stop={s}
-                    selected={s.sweep_id === selectedId}
-                    onSelectAction={() => select(s.sweep_id)}
-                  />
-                ))}
-              </section>
-            ))
+            </>
           )}
         </div>
 
         <div className="relative min-h-[480px] overflow-hidden rounded-xl border lg:h-[calc(100vh-14rem)]">
           <ExploreMap
-            segments={filteredSegments}
-            stops={filteredStops}
+            segments={routeMode ? segments : filteredSegments}
+            stops={routeMode ? stops : filteredStops}
             selectedId={selectedId}
             onSelectAction={select}
+            entryTaps={entryOpen ? { start: entry.start, end: entry.end } : null}
+            onMapTapAction={onMapTap}
+            routeLine={routeMode ? (route?.line ?? null) : null}
+            dimOutsideIds={corridorIds}
           />
-          {selected && (
+          {selected && !entryOpen && (
             <div className="absolute right-3 top-3 w-[300px] max-w-[calc(100%-1.5rem)]">
               <DetailCard selected={selected} onCloseAction={() => select(null)} />
             </div>
@@ -336,13 +614,15 @@ export function ExploreView({
         </div>
       </div>
 
-      <TrayDock
-        regionSlug={regionSlug}
-        catalog={trayCatalog}
-        selectedId={selectedId}
-        onSelectAction={select}
-        onEditFrameAction={() => setParams({ frame: "1" })}
-      />
+      {!entryOpen && (
+        <TrayDock
+          regionSlug={regionSlug}
+          catalog={trayCatalog}
+          selectedId={selectedId}
+          onSelectAction={select}
+          onEditFrameAction={() => setParams({ frame: "1" })}
+        />
+      )}
 
       <FrameSheet autoOpen syncFrameParams />
     </div>
