@@ -32,7 +32,7 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Browser walkthrough of States A-H against wireframe v3 at desktop and 675px
-- [ ] 5.2 Keyboard + focus-visible pass on every new interactive element (entry, chips, rows, escape)
-- [ ] 5.3 End-to-end journeys in the browser: Kingston→Roscoe happy path (tray adds, Build days untouched), GPX sad path, coverage sad path past the region edge
-- [ ] 5.4 `npm test` green including all new tests; fresh-eyes review pass before archive
+- [x] 5.1 Browser walkthrough of States A-H against wireframe v3 at desktop and 675px
+- [x] 5.2 Keyboard + focus-visible pass on every new interactive element (entry, chips, rows, escape)
+- [x] 5.3 End-to-end journeys in the browser: Kingston→Roscoe happy path (tray adds, Build days untouched), GPX sad path, coverage sad path past the region edge
+- [x] 5.4 `npm test` green including all new tests; fresh-eyes review pass before archive
