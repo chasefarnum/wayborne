@@ -2,8 +2,16 @@
 
 48 of 50 seeded roads traced (807 mi) into `region-01-traces.geojson`.
 Source: Overture transportation 2026-06-17.0, local parquet (west edge
--75.5). Nothing seeded to the database yet; this file is the human review
-record the seeding step should read alongside the GeoJSON.
+-75.5).
+
+**SEEDED 2026-07-26** on Chase's go (seed-first, correct-later): geometry +
+traced `length_mi` for all 48 upserted via `seed-region-01.mjs` (the traces
+merge into the segment upsert; re-running converges). The flags below stay
+open as post-seed review items, plus one found at seeding time:
+
+- **r-043 Guymard Turnpike** used 22 filler segments including State Route
+  209 (a parallel road, the Dennytown smell) but was missed by the
+  heavy-filler list below. Eyeball alongside the four.
 
 ## Not traced (2) — absent beats wrong
 

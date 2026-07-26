@@ -16,6 +16,14 @@ import { segments } from "./seed/region-01-segments.mjs";
 import { stops } from "./seed/region-01-stops.mjs";
 import { stopCoords } from "./seed/region-01-stop-coords.mjs";
 
+// Traced road geometry (Overture 2026-06-17.0; adjudication record in
+// scripts/seed/trace/ADJUDICATION.md). Roads absent from the file (r-035,
+// r-048) keep null geom: absent beats wrong.
+const traces = JSON.parse(
+  readFileSync(new URL("./seed/trace/region-01-traces.geojson", import.meta.url), "utf8")
+);
+const traceBySweep = new Map(traces.features.map((f) => [f.properties.sweep_id, f]));
+
 const REGION = {
   number: 1,
   slug: "catskills-hudson-valley",
@@ -63,13 +71,20 @@ if (dashViolations.length) {
 // padded to the full column set with explicit defaults.
 
 function segmentRow(regionId, s) {
+  // Traced geometry rides in as EWKT like stop points. Traced length_mi
+  // supersedes the sweep figure (ADJUDICATION.md: seed figures were rounded
+  // or full-route numbers; the trace is the honest mileage).
+  const trace = traceBySweep.get(s.sweep_id);
   return {
     region_id: regionId,
     sweep_id: s.sweep_id,
+    geom: trace
+      ? `SRID=4326;LINESTRING(${trace.geometry.coordinates.map(([lon, lat]) => `${lon} ${lat}`).join(",")})`
+      : null,
     name: s.name,
     route_desc: s.route_desc,
     endpoints: s.endpoints ?? null,
-    length_mi: s.length_mi ?? null,
+    length_mi: trace ? Math.round(trace.properties.traced_length_mi * 10) / 10 : s.length_mi ?? null,
     sub_area: s.sub_area ?? null,
     character: s.character ?? [],
     blurb: s.blurb ?? null,
@@ -164,6 +179,39 @@ const results = [
   ["stops service", await count(db, "stops"), expected.stops.total],
   ["stops anon", await count(anon, "stops"), expected.stops.anon],
 ];
+
+// Traced geometry: every road in the traces file must land with a non-null
+// geom (service view; RLS-hidden hold roads still carry geometry).
+const { count: tracedCount, error: tracedError } = await db
+  .from("road_segments")
+  .select("*", { count: "exact", head: true })
+  .not("geom", "is", null);
+if (tracedError) throw new Error(`traced count failed: ${tracedError.message}`);
+results.push(["road_segments with geom (service)", tracedCount, traces.features.length]);
+
+// Corridor probe as anon: a 3-point line down the first kept traced road must
+// return segment rows through content_near_route, that road among them.
+const probeFeature = traces.features.find(
+  (f) => (segments.find((s) => s.sweep_id === f.properties.sweep_id)?.review_status ?? "keep") === "keep"
+);
+const coords = probeFeature.geometry.coordinates;
+const probeLine = {
+  type: "LineString",
+  coordinates: [coords[0], coords[Math.floor(coords.length / 2)], coords[coords.length - 1]],
+};
+const { data: corridorRows, error: corridorError } = await anon.rpc("content_near_route", {
+  region: region.id,
+  line: probeLine,
+});
+if (corridorError) throw new Error(`corridor probe failed: ${corridorError.message}`);
+const corridorSegments = corridorRows.filter((r) => r.item_type === "segment");
+const probeHit = corridorSegments.some((r) => r.sweep_id === probeFeature.properties.sweep_id) ? 1 : 0;
+console.log(
+  `corridor probe (${probeFeature.properties.sweep_id}): ${corridorSegments.length} segments, ${
+    corridorRows.length - corridorSegments.length
+  } stops within 5 mi`
+);
+results.push([`corridor probe returns ${probeFeature.properties.sweep_id} (anon)`, probeHit, 1]);
 
 let failed = false;
 for (const [label, actual, want] of results) {

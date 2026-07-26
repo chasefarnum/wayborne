@@ -180,13 +180,20 @@ export default function ExploreMap({
         },
         map.getLayer("water") ? "water" : undefined
       );
-      map.addLayer({
-        id: "segments-line",
-        type: "line",
-        source: "segments",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": ["get", "color"], "line-width": 3.5, "line-opacity": 0.85 },
-      });
+      // Curated road lines insert below the basemap's first symbol layer:
+      // street names and shields must stay readable over our overlays, or the
+      // rider can't tell which road the line is on.
+      const firstSymbolId = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+      map.addLayer(
+        {
+          id: "segments-line",
+          type: "line",
+          source: "segments",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": ["get", "color"], "line-width": 3.5, "line-opacity": 0.85 },
+        },
+        firstSymbolId
+      );
       map.addLayer({
         id: "stops-circle",
         type: "circle",
