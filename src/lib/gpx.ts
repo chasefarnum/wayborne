@@ -121,20 +121,16 @@ export function buildDayGpx({
         `    </rtept>`
     )
     .join("\n");
-  // The same points ride twice: a named <rte> for importers that honor route
-  // points (Detecht's app auto-converts one; Garmin builds a route), and a
-  // mirror <trk> because Detecht's WEB importer parses only trkpts and errors
-  // on route-only files (field-tested 2026-07-26; Kurviger ships the same
-  // dual shape). Track points carry no names — no consumer reads them there.
-  const trkpts = points
-    .map((p) => `      <trkpt lat="${coord(p.at[1])}" lon="${coord(p.at[0])}"></trkpt>`)
-    .join("\n");
+  // Route only, no mirror track: Detecht's phone app — the delivery path —
+  // reads BOTH carriers from a dual file and doubles every stop (field-tested
+  // 2026-07-26). Their web planner errors on route-only files, but it
+  // resamples the line and discards locations even when it accepts one, so
+  // it was never a way to deliver the plan.
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<gpx version="1.1" creator="Wayborne" xmlns="http://www.topografix.com/GPX/1/1">\n` +
     `  <metadata>\n    <name>${xmlEscape(routeName)}</name>\n  </metadata>\n` +
     `  <rte>\n    <name>${xmlEscape(routeName)}</name>\n${rtepts}\n  </rte>\n` +
-    `  <trk>\n    <name>${xmlEscape(routeName)}</name>\n    <trkseg>\n${trkpts}\n    </trkseg>\n  </trk>\n` +
     `</gpx>\n`;
 
   return { xml, pointCount: points.length, excluded };

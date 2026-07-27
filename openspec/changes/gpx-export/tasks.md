@@ -23,6 +23,7 @@
 ## 4. Field fix: Detecht web importer (done 2026-07-26)
 
 - [x] 4.0 Dual-carrier file: web-planner import failed on rte-only ("Something went wrong"); bundle read + live A/B proved their server parser reads trkpts only; builder now emits the named rte plus a mirror trk (same points, same order)
+- [x] 4.2 Route-only carrier restored: the phone app read both carriers from the dual file and doubled every stop; mirror trk removed, web planner documented incompatible (it resamples + discards names even when it accepts a file); phone app is the delivery path
 - [x] 4.1 Waypoints are locations (Chase's call after the first real import): one named point per stop, one per road at its arc-length midpoint on a traced vertex; entry/shaping/exit triples, orientation chaining, and the point budget removed; specs, design, and tests rewritten; 97/97 + tsc green
 
 ## 5. Acceptance (manual, gates archive)

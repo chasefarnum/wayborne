@@ -1,15 +1,15 @@
 ## ADDED Requirements
 
-### Requirement: Each day leg exports as a GPX 1.1 dual-carrier file
-The days surface SHALL offer a per-day export action that generates a GPX 1.1 file client-side carrying the day's points twice: a single named `<rte>` and a mirror `<trk>` with identical coordinates in identical order (Detecht's web importer parses only track points and errors on route-only files; the app and Garmin honor the route). The file SHALL use the GPX 1.1 namespace, `creator="Wayborne"`, a route and track name identifying the region and the day ("Wayborne · <region> · Day n of N"), XML-escaped names, and coordinates at 6 decimal places, and SHALL download as `wayborne-<region-slug>-day-<n>.gpx` with no server round-trip.
+### Requirement: Each day leg exports as a GPX 1.1 route-only file
+The days surface SHALL offer a per-day export action that generates a GPX 1.1 file client-side containing exactly one named `<rte>` and no track (Detecht's phone app, the delivery path, reads both carriers from a dual rte+trk file and doubles every stop). The file SHALL use the GPX 1.1 namespace, `creator="Wayborne"`, a route name identifying the region and the day ("Wayborne · <region> · Day n of N"), XML-escaped names, and coordinates at 6 decimal places, and SHALL download as `wayborne-<region-slug>-day-<n>.gpx` with no server round-trip.
 
 #### Scenario: Exporting a built day
 - **WHEN** a rider with built days triggers Export GPX on day 2 of a 3-day Catskills / Hudson Valley trip
-- **THEN** the browser downloads `wayborne-catskills-hudson-valley-day-2.gpx`, a valid GPX 1.1 document whose named route and mirror track both carry the day's points
+- **THEN** the browser downloads `wayborne-catskills-hudson-valley-day-2.gpx`, a valid GPX 1.1 document whose single named route carries the day's points, with no `<trk>` element
 
-#### Scenario: Importing into Detecht's web trip planner
-- **WHEN** the exported file is imported by a consumer that reads only track points (Detecht's web trip planner)
-- **THEN** the mirror track yields the same points the route carries, in ride order
+#### Scenario: Importing into Detecht's phone app
+- **WHEN** the exported file is opened with the Detecht app
+- **THEN** each of the day's points appears exactly once, with no duplicated stops
 
 #### Scenario: Names carrying XML-hostile characters
 - **WHEN** an exported item's name contains `&`, `<`, or quotes (e.g., "Hickory BBQ & Smokehouse")

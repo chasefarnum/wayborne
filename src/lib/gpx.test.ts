@@ -30,7 +30,7 @@ const build = (items: GpxDayItem[], dayNumber = 1, dayCount = 1) =>
   buildDayGpx({ regionName: "Catskills / Hudson Valley", dayNumber, dayCount, items });
 
 describe("file structure", () => {
-  test("emits the golden dual-carrier file for a small mixed day", () => {
+  test("emits the golden route-only file for a small mixed day", () => {
     const result = build(
       [
         stop("Phoenicia Diner", [-74.0, 42.0]),
@@ -61,35 +61,22 @@ describe("file structure", () => {
         `      <name>Woodland Valley Campground</name>\n` +
         `    </rtept>\n` +
         `  </rte>\n` +
-        `  <trk>\n` +
-        `    <name>Wayborne · Catskills / Hudson Valley · Day 2 of 3</name>\n` +
-        `    <trkseg>\n` +
-        `      <trkpt lat="42.000000" lon="-74.000000"></trkpt>\n` +
-        `      <trkpt lat="42.000000" lon="-74.020000"></trkpt>\n` +
-        `      <trkpt lat="42.000000" lon="-74.040000"></trkpt>\n` +
-        `    </trkseg>\n` +
-        `  </trk>\n` +
         `</gpx>\n`
     );
   });
 
-  test("the track mirrors the route points exactly, in order", () => {
+  test("the file carries exactly one route and no track", () => {
+    // Detecht's app reads both carriers from a dual rte+trk file and doubles
+    // every stop; the file stays route-only by design.
     const result = build([
       stop("Diner", [-74.0, 42.0]),
       segment("NY-28A", flatLine(-74.01, -74.05, 5)),
       stop("Camp", [-74.06, 42.0]),
     ]);
     if (result.xml == null) throw new Error("expected xml");
-    const rte = [...result.xml.matchAll(/<rtept lat="([^"]+)" lon="([^"]+)"/g)].map((m) => [
-      m[1],
-      m[2],
-    ]);
-    const trk = [...result.xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"/g)].map((m) => [
-      m[1],
-      m[2],
-    ]);
-    expect(trk).toEqual(rte);
-    expect(trk.length).toBe(result.pointCount);
+    expect(result.xml.match(/<rte>/g)).toHaveLength(1);
+    expect(result.xml).not.toContain("<trk>");
+    expect(result.xml).not.toContain("<trkpt");
   });
 
   test("escapes XML-hostile characters in names", () => {
