@@ -8,35 +8,30 @@ Two prior calls bind this design: the GPX parser is a tolerant tag scan, not DOM
 
 **Goals:**
 - A rider exports one riding day as a GPX 1.1 file that imports into Detecht as an immediately editable, navigable route with named, meaningful points, and into a Garmin.
-- Detecht's router is held onto curated roads by construction: oriented entry/exit points plus tunable shaping points per segment.
+- Waypoints are locations: one named point per stop, one per curated road (arc-length midpoint on a traced vertex); the nav app's router owns the line between them.
 - Honesty holds at the file boundary: anything the file can't carry (untraced segment, ungeocoded stop) is excluded and said out loud in the UI.
 
 **Non-Goals:**
-- No routed connector geometry inside the file (Detecht's engine owns the line between our points; Valhalla-routed export is the v2 escalation if shaping points prove insufficient in the field).
-- No whole-trip single file, no `<wpt>` layer, no `<trk>` track mode in v1.
+- No routed connector geometry inside the file (Detecht's engine owns the line between our points; Valhalla-routed export is the v2 escalation if midpoint waypoints prove insufficient in the field).
+- No whole-trip single file, no `<wpt>` layer in v1 (the mirror `<trk>` exists for importer compatibility, not as a shape carrier).
 - No server involvement, no new dependencies, no schema or RPC changes.
 
 ## Decisions
 
-**1. Export a `<rte>`, not a `<trk>`.** Detecht auto-converts a route file and drops the rider straight into edit/save/navigate; a track file forces the Track Options detour and its Convert to Route path re-routes anyway, so exact track shape buys nothing for the benchmark. Garmin units likewise recalculate routes on import. Alternative considered: dual rte+trk in one file — parked; two line carriers in one file is exactly the ambiguity that makes importers guess.
+**1. Dual carrier: named `<rte>` plus mirror `<trk>` (amended 2026-07-26, field-tested).** Shipped rte-only first; Detecht's WEB trip planner rejected it with its generic error. Bundle archaeology plus a live A/B (route-only file fails, track file imports) proved their web importer is a server-side function that parses only track points. The app and Garmin honor routes (auto-convert, named points), so the file now carries the same points twice: the named `<rte>` for route-aware consumers, and an unnamed mirror `<trk>` in identical order for track-only parsers. Kurviger — on Detecht's supported list — ships this same dual shape. The original concern (two carriers make importers guess) lost to the field evidence: one carrier makes Detecht's web importer fail outright.
 
-**2. Points are intent, not shape.** Each stop emits one `rtept` named after the stop. Each segment emits an entry point, `SHAPING_POINTS_PER_SEGMENT` interior points (evenly spaced by arc length along the traced line), and an exit point — named after the road ("NY-28A · start", "NY-28A", "NY-28A · end"). Shaping starts at 1 per segment; it is a constant tuned by the field test, not a schema property. Rationale: Detecht re-routes between points, and every exported point is rider-visible and skippable, so filler points are UX damage — the minimum set that pins the router to the curated road wins.
+**2. Waypoints are locations — one per item (amended 2026-07-26, Chase's call on field evidence).** V1 emitted entry/shaping/exit triples per segment to pin the router along the road. The first real import showed what that costs: Detecht's web planner discards our names, reverse-geocodes every point, and renders a wall of duplicate street names — three and four pins per road. Chase's direction: feed it locations and let Detecht do the rest. Each stop emits one point named after the stop; each segment emits ONE point named after the road, on the traced vertex nearest its arc-length midpoint (a real vertex, never interpolated, so the point sits on the road and pulls the route onto it). No orientation logic, no shaping constants, no point budget — a day's file carries exactly as many points as it has located items. Accepted trade-off: a midpoint guarantees the router touches the road, not that it rides it end to end; if the ride test shows a road getting clipped, the escalation is selective extra points on that road, not a return to triples.
 
-**3. Segment orientation by nearest-endpoint chaining.** Walk the day's items in ride order keeping a moving anchor (the last emitted coordinate). A segment enters at whichever endpoint is closer to the anchor. The first item, when it is a segment, orients against the next item's location instead; a day with no other located item keeps traced direction. Haversine already exists in `route.ts`. Alternative considered: persisting an orientation flag per tray item — rejected, it's derivable and the tray stays a list of refs.
+**3. Builder is a pure function; download is a Blob.** `src/lib/gpx.ts` exports `buildDayGpx(...)` returning `{ xml, excluded, pointCount }` — no React, no fetch, string assembly with manual XML escaping (mirror of the parse-side tag-scan philosophy; no serializer dependency). `days-view.tsx` wires it to an anchor-download Blob per day. File name `wayborne-<region-slug>-day-<n>.gpx`; route `<name>` reads "Wayborne · <region> · Day n of N". Coordinates emit at 6 decimals, GPX 1.1 namespace, `creator="Wayborne"`.
 
-**4. Point budget enforces Detecht's guidance, softly.** Shaping points are included only while the file total stays ≤ 30; they collapse (longest segments keep theirs last) before any stop or entry/exit point is touched. Entry/exit and stop points are never dropped: if those alone exceed 30, the file still exports — Detecht supports 240 — and the count is the rider's signal that the day is overstuffed. Alternative considered: hard cap with our own decimation — rejected; silently rewriting the rider's plan is the exact failure the provenance brand exists to avoid.
-
-**5. Builder is a pure function; download is a Blob.** `src/lib/gpx.ts` exports `buildDayGpx(...)` returning `{ xml, excluded, pointCount }` — no React, no fetch, string assembly with manual XML escaping (mirror of the parse-side tag-scan philosophy; no serializer dependency). `days-view.tsx` wires it to an anchor-download Blob per day. File name `wayborne-<region-slug>-day-<n>.gpx`; route `<name>` reads "Wayborne · <region> · Day n of N". Coordinates emit at 6 decimals, GPX 1.1 namespace, `creator="Wayborne"`.
-
-**6. Exclusions return as data, render as notes.** `excluded` carries `{ name, reason }` per skipped item (untraced segment, ungeocoded stop — today r-035, r-048, s-048). The days view renders them beside the export action using the existing warning furniture. A day whose items yield fewer than two route points has no exportable line; the action disables with the reason inline.
+**4. Exclusions return as data, render as notes.** `excluded` carries `{ name, reason }` per skipped item (untraced segment, ungeocoded stop — today r-035, r-048, s-048). The days view renders them beside the export action using the existing warning furniture. A day whose items yield fewer than two route points has no exportable line; the action disables with the reason inline.
 
 ## Risks / Trade-offs
 
-- [Detecht's router deviates from a curated road between entry and exit] → shaping-point constant is the tuning knob; field test on a real device is the acceptance gate; v2 escalation is Valhalla-routed connectors feeding a denser rte.
+- [The router clips a curated road it only touches at the midpoint] → ride-test watched; escalation is selective extra points on the offending road, then Valhalla-routed connectors as the v2 path.
 - [Garmin rejects a structurally sloppy file] → unit tests assert GPX 1.1 structure (namespace, element order, escaping, coordinate bounds) against golden files; manual BaseCamp/zumo import is part of acceptance.
-- [Nearest-endpoint chaining mis-orients a segment on a pathological day (e.g., two roads sharing an endpoint region)] → orientation is pure and unit-tested including loop and shared-endpoint cases; a wrong guess is recoverable in Detecht's editor, and the field test watches for it.
 - [Rider expects the exact corridor line from the plan view and gets Detecht's re-route] → the export UI copy says whose router owns the line; this is the product's stated position (we influence the route; their nav app owns it).
 
 ## Open Questions
 
-- Shaping-point count and placement may need per-segment tuning (long technical roads vs short connectors) after the Detecht field test; v1 ships one constant.
+- Whether a single midpoint waypoint holds Detecht's router on long or convoluted roads end to end; the ride test decides, and selective extra points per road are the tuning knob.

@@ -20,7 +20,12 @@
 - [x] 3.2 Exclusion notes render beside the export action using existing warning furniture; disabled state with inline reason when nothing is exportable; copy says Detecht's router owns the line between points
 - [x] 3.3 Action states (exportable, with exclusions, disabled) covered at the lib level — the repo has no component-test infra (vitest is node-only, no jsdom/RTL) and the wiring stays thin enough that `buildDayGpx`'s result union carries every state the UI renders; full suite + typecheck green
 
-## 4. Acceptance (manual, gates archive)
+## 4. Field fix: Detecht web importer (done 2026-07-26)
 
-- [ ] 4.1 Field test: import a real Catskills day into Detecht — route auto-opens editable, points named as specced, curated roads held on the line; tune `SHAPING_POINTS_PER_SEGMENT` if the router deviates
-- [ ] 4.2 Garmin test: same file imports into BaseCamp/a Garmin unit without complaint
+- [x] 4.0 Dual-carrier file: web-planner import failed on rte-only ("Something went wrong"); bundle read + live A/B proved their server parser reads trkpts only; builder now emits the named rte plus a mirror trk (same points, same order)
+- [x] 4.1 Waypoints are locations (Chase's call after the first real import): one named point per stop, one per road at its arc-length midpoint on a traced vertex; entry/shaping/exit triples, orientation chaining, and the point budget removed; specs, design, and tests rewritten; 97/97 + tsc green
+
+## 5. Acceptance (manual, gates archive)
+
+- [ ] 5.1 Field test: import a real Catskills day into Detecht — route auto-opens editable, points named as specced, curated roads held on the line; add selective extra points on any road the router clips
+- [ ] 5.2 Garmin test: same file imports into BaseCamp/a Garmin unit without complaint

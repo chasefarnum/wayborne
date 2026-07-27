@@ -1,13 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  DETECHT_POINT_BUDGET,
-  SHAPING_POINTS_PER_SEGMENT,
-  buildDayGpx,
-  gpxFileName,
-  lineOf,
-  pointOf,
-} from "@/lib/gpx";
+import { buildDayGpx, gpxFileName, lineOf, midpointOf, pointOf } from "@/lib/gpx";
 import type { GpxDayItem } from "@/lib/gpx";
 import type { LonLat } from "@/lib/route";
 
@@ -37,7 +30,7 @@ const build = (items: GpxDayItem[], dayNumber = 1, dayCount = 1) =>
   buildDayGpx({ regionName: "Catskills / Hudson Valley", dayNumber, dayCount, items });
 
 describe("file structure", () => {
-  test("emits the golden GPX 1.1 file for a small mixed day", () => {
+  test("emits the golden dual-carrier file for a small mixed day", () => {
     const result = build(
       [
         stop("Phoenicia Diner", [-74.0, 42.0]),
@@ -48,7 +41,7 @@ describe("file structure", () => {
       3
     );
     if (result.xml == null) throw new Error("expected xml");
-    expect(result.pointCount).toBe(5);
+    expect(result.pointCount).toBe(3);
     expect(result.excluded).toEqual([]);
     expect(result.xml).toBe(
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -61,21 +54,42 @@ describe("file structure", () => {
         `    <rtept lat="42.000000" lon="-74.000000">\n` +
         `      <name>Phoenicia Diner</name>\n` +
         `    </rtept>\n` +
-        `    <rtept lat="42.000000" lon="-74.010000">\n` +
-        `      <name>NY-214 · start</name>\n` +
-        `    </rtept>\n` +
         `    <rtept lat="42.000000" lon="-74.020000">\n` +
         `      <name>NY-214</name>\n` +
-        `    </rtept>\n` +
-        `    <rtept lat="42.000000" lon="-74.030000">\n` +
-        `      <name>NY-214 · end</name>\n` +
         `    </rtept>\n` +
         `    <rtept lat="42.000000" lon="-74.040000">\n` +
         `      <name>Woodland Valley Campground</name>\n` +
         `    </rtept>\n` +
         `  </rte>\n` +
+        `  <trk>\n` +
+        `    <name>Wayborne · Catskills / Hudson Valley · Day 2 of 3</name>\n` +
+        `    <trkseg>\n` +
+        `      <trkpt lat="42.000000" lon="-74.000000"></trkpt>\n` +
+        `      <trkpt lat="42.000000" lon="-74.020000"></trkpt>\n` +
+        `      <trkpt lat="42.000000" lon="-74.040000"></trkpt>\n` +
+        `    </trkseg>\n` +
+        `  </trk>\n` +
         `</gpx>\n`
     );
+  });
+
+  test("the track mirrors the route points exactly, in order", () => {
+    const result = build([
+      stop("Diner", [-74.0, 42.0]),
+      segment("NY-28A", flatLine(-74.01, -74.05, 5)),
+      stop("Camp", [-74.06, 42.0]),
+    ]);
+    if (result.xml == null) throw new Error("expected xml");
+    const rte = [...result.xml.matchAll(/<rtept lat="([^"]+)" lon="([^"]+)"/g)].map((m) => [
+      m[1],
+      m[2],
+    ]);
+    const trk = [...result.xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"/g)].map((m) => [
+      m[1],
+      m[2],
+    ]);
+    expect(trk).toEqual(rte);
+    expect(trk.length).toBe(result.pointCount);
   });
 
   test("escapes XML-hostile characters in names", () => {
@@ -106,112 +120,44 @@ describe("file structure", () => {
   });
 });
 
-describe("derivation and orientation", () => {
-  test("mixed day emits points in ride order", () => {
+describe("point derivation — locations only", () => {
+  test("one named point per item, in ride order", () => {
     const result = build([
       stop("Diner", [-74.0, 42.0]),
       segment("NY-28A", flatLine(-74.01, -74.05, 5)),
-      stop("Camp", [-74.06, 42.0]),
+      segment("Peekamoose", flatLine(-74.06, -74.1, 5)),
+      stop("Camp", [-74.11, 42.0]),
     ]);
     if (result.xml == null) throw new Error("expected xml");
     expect(emittedPoints(result.xml).map((p) => p.name)).toEqual([
       "Diner",
-      "NY-28A · start",
       "NY-28A",
-      "NY-28A · end",
+      "Peekamoose",
       "Camp",
     ]);
+    expect(result.pointCount).toBe(4);
   });
 
-  test("a segment following a stop enters at the nearer endpoint", () => {
-    // Trace runs far-to-near: the builder must reverse it so entry sits by
-    // the previous stop.
-    const result = build([
-      stop("Diner", [-74.0, 42.0]),
-      segment("NY-28", flatLine(-74.1, -74.005, 5)),
-    ]);
-    if (result.xml == null) throw new Error("expected xml");
-    const points = emittedPoints(result.xml);
-    expect(points[1].name).toBe("NY-28 · start");
-    expect(points[1].lon).toBeCloseTo(-74.005, 6);
-    expect(points[points.length - 1].lon).toBeCloseTo(-74.1, 6);
-  });
-
-  test("a day opening with a segment orients toward the next located item", () => {
-    // Stop sits by the trace's first coordinate, so the segment reverses to
-    // exit toward it.
-    const result = build([
-      segment("Peekamoose", flatLine(-74.01, -74.1, 5)),
-      stop("Camp", [-74.0, 42.0]),
-    ]);
-    if (result.xml == null) throw new Error("expected xml");
-    const points = emittedPoints(result.xml);
-    expect(points[0].name).toBe("Peekamoose · start");
-    expect(points[0].lon).toBeCloseTo(-74.1, 6);
-    expect(points[2].name).toBe("Peekamoose · end");
-    expect(points[2].lon).toBeCloseTo(-74.01, 6);
-  });
-
-  test("a lone segment keeps its traced direction", () => {
-    const result = build([segment("Barkaboom", flatLine(-74.01, -74.1, 5))]);
-    if (result.xml == null) throw new Error("expected xml");
-    const points = emittedPoints(result.xml);
-    expect(points[0].lon).toBeCloseTo(-74.01, 6);
-    expect(points[points.length - 1].lon).toBeCloseTo(-74.1, 6);
-  });
-
-  test("consecutive segments chain end to start", () => {
-    // Second trace supplied reversed; chaining must enter it at the end the
-    // first segment exits beside.
-    const result = build([
-      segment("First", flatLine(-74.0, -74.05, 3)),
-      segment("Second", flatLine(-74.15, -74.055, 3)),
-    ]);
-    if (result.xml == null) throw new Error("expected xml");
-    const points = emittedPoints(result.xml);
-    const secondStart = points.find((p) => p.name === "Second · start")!;
-    expect(secondStart.lon).toBeCloseTo(-74.055, 6);
-  });
-
-  test("shaping points sit on traced vertices", () => {
+  test("a road's point sits at its arc-length midpoint, on a traced vertex", () => {
     const line = flatLine(-74.0, -74.1, 11);
-    const result = build([segment("NY-30", line)]);
+    const result = build([stop("Diner", [-73.99, 42.0]), segment("NY-30", line)]);
     if (result.xml == null) throw new Error("expected xml");
-    const mid = emittedPoints(result.xml).find((p) => p.name === "NY-30")!;
-    expect(line.some(([lon]) => Math.abs(lon - mid.lon) < 1e-9)).toBe(true);
-  });
-});
-
-describe("point budget", () => {
-  // 11 segments: essential 22, shaping 11 → 33. Three shortest lose shaping
-  // to land exactly on the budget.
-  test("shaping collapses shortest-first to fit the budget", () => {
-    expect(SHAPING_POINTS_PER_SEGMENT).toBe(1);
-    const segments = Array.from({ length: 11 }, (_, i) =>
-      // Lengths ascend with i: segment 0 is shortest.
-      segment(`Road ${i}`, flatLine(-74.0 - i * 0.2, -74.01 - i * 0.2 - (i + 1) * 0.01, 3))
-    );
-    const result = build(segments);
-    if (result.xml == null) throw new Error("expected xml");
-    expect(result.pointCount).toBe(DETECHT_POINT_BUDGET);
-    const names = emittedPoints(result.xml).map((p) => p.name);
-    // Shortest three collapsed to entry/exit only; longest kept its midpoint.
-    for (const i of [0, 1, 2]) expect(names.filter((n) => n === `Road ${i}`).length).toBe(0);
-    for (const i of [3, 10]) expect(names.filter((n) => n === `Road ${i}`).length).toBe(1);
+    const road = emittedPoints(result.xml).find((p) => p.name === "NY-30")!;
+    expect(road.lon).toBeCloseTo(-74.05, 6);
+    expect(line.some(([lon]) => Math.abs(lon - road.lon) < 1e-9)).toBe(true);
   });
 
-  test("essential points are never dropped, even past the budget", () => {
-    const segments = Array.from({ length: 20 }, (_, i) =>
-      segment(`Road ${i}`, flatLine(-74.0 - i * 0.2, -74.05 - i * 0.2, 3))
-    );
-    const result = build(segments);
-    if (result.xml == null) throw new Error("expected xml");
-    // 40 entry/exit points all survive; every shaping point is gone.
-    expect(result.pointCount).toBe(40);
-    const names = emittedPoints(result.xml).map((p) => p.name);
-    expect(names.filter((n) => n.endsWith("· start")).length).toBe(20);
-    expect(names.filter((n) => n.endsWith("· end")).length).toBe(20);
-    expect(names.filter((n) => !n.includes("·")).length).toBe(0);
+  test("midpointOf picks the vertex nearest half the arc length on uneven spacing", () => {
+    // Vertices bunched at the west end: the halfway vertex by arc length is
+    // not the middle by index.
+    const line: LonLat[] = [
+      [-74.0, 42],
+      [-74.4, 42],
+      [-74.5, 42],
+      [-74.52, 42],
+      [-74.54, 42],
+    ];
+    expect(midpointOf(line)).toEqual([-74.4, 42]);
   });
 });
 
