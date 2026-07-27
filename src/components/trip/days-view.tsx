@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Warn, WarnFlag } from "@/components/warn";
 import { CATEGORY_LABELS, characterLabel } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
+import { buildDayGpx, gpxFileName, lineOf, pointOf } from "@/lib/gpx";
 import {
   dayFuelGaps,
   dayIndexOf,
@@ -139,6 +140,33 @@ export function DaysView({
 
   const canMove = (flatIndex: number, dir: -1 | 1) =>
     dayCounts != null && moveTrayItem(trip.items, dayCounts, flatIndex, dir) != null;
+
+  // Built per active day; the result carries its own disabled reason and
+  // exclusion notes, so the UI never invents state the builder didn't return.
+  const gpx = useMemo(() => {
+    if (!active || active.legs.length === 0) return null;
+    return buildDayGpx({
+      regionName,
+      dayNumber: activeIndex + 1,
+      dayCount: days.length,
+      items: active.legs.map((leg) =>
+        leg.kind === "segment"
+          ? { kind: "segment" as const, name: leg.segment.name, line: lineOf(leg.segment.geom) }
+          : { kind: "stop" as const, name: leg.stop.name, at: pointOf(leg.stop.geom) }
+      ),
+    });
+  }, [active, activeIndex, days.length, regionName]);
+
+  const exportGpx = useCallback(() => {
+    if (!gpx?.xml) return;
+    const blob = new Blob([gpx.xml], { type: "application/gpx+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = gpxFileName(regionSlug, activeIndex + 1);
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [gpx, regionSlug, activeIndex]);
 
   // w-full for the same reason as explore-view: a fit-content flex item in
   // the body's column flex collapses to its widest child without it.
@@ -285,6 +313,27 @@ export function DaysView({
                   />
                 </Fragment>
               ))
+            )}
+
+            {gpx && (
+              <div className="flex flex-col items-start gap-1.5 rounded-xl border p-3">
+                <div className="flex w-full items-center justify-between gap-2">
+                  <p className="text-sm font-medium">{`Ride Day ${activeIndex + 1}`}</p>
+                  <Button size="sm" disabled={gpx.xml == null} onClick={exportGpx}>
+                    Export GPX
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {gpx.xml != null
+                    ? `${gpx.pointCount} named points for your nav app. Its router owns the line between them.`
+                    : gpx.reason}
+                </p>
+                {gpx.excluded.map((e, i) => (
+                  <Warn key={`${e.name}-${i}`}>
+                    {`${e.name} isn't in the file: ${e.reason}.`}
+                  </Warn>
+                ))}
+              </div>
             )}
 
             {!active.nightAnchored && (
