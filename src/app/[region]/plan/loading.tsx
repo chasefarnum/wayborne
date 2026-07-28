@@ -2,15 +2,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Region loading state (wireframe v2, State C): skeletons match the real
 // card geometry so the swap does not jump; shimmer respects reduced motion.
+// Mirrors the shell layout — left panel skeletons, full-bleed map canvas —
+// so the reveal does not reflow.
 export default function PlanLoading() {
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4">
-      <div className="flex gap-2">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-8 w-24 rounded-full motion-reduce:animate-none" />
-        ))}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+    <div className="grid min-h-0 flex-1 lg:grid-cols-[400px_minmax(0,1fr)]">
+      <aside className="flex min-w-0 flex-col gap-4 p-4 lg:border-r">
+        <Skeleton className="h-7 w-56 motion-reduce:animate-none" />
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-full motion-reduce:animate-none" />
+          ))}
+        </div>
         <div className="flex flex-col gap-3">
           <Skeleton className="h-5 w-32 motion-reduce:animate-none" />
           {Array.from({ length: 3 }, (_, i) => (
@@ -22,12 +25,12 @@ export default function PlanLoading() {
             </div>
           ))}
         </div>
-        <div className="relative min-h-[480px] overflow-hidden rounded-xl border">
-          <Skeleton className="absolute inset-0 rounded-none motion-reduce:animate-none" />
-          <p className="absolute bottom-4 left-4 rounded-md bg-background/90 px-3 py-1.5 text-sm text-muted-foreground">
-            Loading the region: roads first, map layers behind them.
-          </p>
-        </div>
+      </aside>
+      <div className="relative min-h-[480px] lg:min-h-0">
+        <Skeleton className="absolute inset-0 rounded-none motion-reduce:animate-none" />
+        <p className="absolute bottom-4 left-4 rounded-md bg-background/90 px-3 py-1.5 text-sm text-muted-foreground">
+          Loading the region: roads first, map layers behind them.
+        </p>
       </div>
     </div>
   );

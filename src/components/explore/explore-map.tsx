@@ -35,7 +35,9 @@ const CORRIDOR_WIDTH: maplibregl.ExpressionSpecification = [
   24,
   CORRIDOR_BASE_PX * 2 ** 24,
 ];
-const CORRIDOR_COLOR = "#e4e3de";
+// Tuned against alidade_smooth_dark: a warm lift of the dark land color, so
+// the band still reads as a highlighted swath of the map itself.
+const CORRIDOR_COLOR = "#2c2a27";
 const DIM_OPACITY = 0.25;
 const LINE_DRAW_MS = 400;
 
@@ -210,17 +212,17 @@ export default function ExploreMap({
         type: "line",
         source: "route",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#1c1917", "line-width": 3, "line-opacity": 0.9 },
+        paint: { "line-color": "#fafaf9", "line-width": 3, "line-opacity": 0.9 },
       });
       map.addLayer({
         id: "route-points-circle",
         type: "circle",
         source: "route-points",
         paint: {
-          "circle-color": "#1c1917",
+          "circle-color": "#fafaf9",
           "circle-radius": 10,
           "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": "#1c1917",
         },
       });
       map.addLayer({
@@ -233,7 +235,7 @@ export default function ExploreMap({
           "text-font": ["Stadia Semibold"],
           "text-allow-overlap": true,
         },
-        paint: { "text-color": "#ffffff" },
+        paint: { "text-color": "#1c1917" },
       });
 
       for (const layer of ["segments-line", "stops-circle"]) {

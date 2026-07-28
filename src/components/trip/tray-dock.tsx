@@ -63,7 +63,7 @@ export function TrayDock({
   const count = resolved.length;
 
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur">
+    <div className="sticky bottom-0 z-20 border-t bg-background/95 px-4 py-3 backdrop-blur">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex w-56 shrink-0 flex-col gap-1">
           <p className="text-sm font-semibold tabular-nums">{`Trip · ${count} ${count === 1 ? "item" : "items"}`}</p>
@@ -169,11 +169,12 @@ export function TrayDock({
         {count > 0 && !activeDay && (
           <div className="shrink-0">
             {trip.dayCounts ? (
-              <Button asChild>
+              <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
                 <Link href={`/${regionSlug}/days`}>View days</Link>
               </Button>
             ) : (
               <Button
+                className="bg-brand text-brand-foreground hover:bg-brand/90"
                 onClick={() => {
                   // Building days needs a ruler; unframed riders get the
                   // frame sheet first, then come back to the same button.

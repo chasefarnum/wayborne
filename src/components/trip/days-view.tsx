@@ -168,30 +168,29 @@ export function DaysView({
     URL.revokeObjectURL(url);
   }, [gpx, regionSlug, activeIndex]);
 
-  // w-full for the same reason as explore-view: a fit-content flex item in
-  // the body's column flex collapses to its widest child without it.
+  // Inside the app shell: the content area scrolls on desktop, the tray dock
+  // pins below it across the full frame width, and the reading column keeps
+  // its measure instead of stretching edge to edge.
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 lg:overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-lg font-semibold">{regionName}</h1>
+          <h1 className="font-heading text-base font-bold uppercase tracking-[0.22em]">
+            {regionName}
+          </h1>
           {hasDays && (
             <p className="text-xs text-muted-foreground tabular-nums">
               {`${totalMiles} mi across ${days.length} ${days.length === 1 ? "day" : "days"} · draft`}
             </p>
           )}
         </div>
-        <Link
-          href={`/${regionSlug}/plan`}
-          className="text-sm underline underline-offset-2 hover:text-foreground"
-        >
-          Back to the map
-        </Link>
       </header>
 
       {hydrated && !hasDays && (
         <div className="flex flex-col items-start gap-3 rounded-xl border p-6">
-          <p className="text-sm font-semibold">No days built yet.</p>
+          <p className="font-serif text-base">No days built yet.</p>
           <p className="text-sm text-muted-foreground">
             Tray roads and stops on the map, then hit Build days. They land here as rideable
             daily legs.
@@ -216,7 +215,7 @@ export function DaysView({
                   i === activeIndex && "border-foreground"
                 )}
               >
-                <span className="text-sm font-medium">{`Day ${i + 1}`}</span>
+                <span className="font-heading text-sm font-semibold uppercase tracking-[0.1em]">{`Day ${i + 1}`}</span>
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {`${day.miles} mi`}
                   {day.fuelGaps.length > 0 ? (
@@ -269,7 +268,7 @@ export function DaysView({
 
           <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold">{`Day ${activeIndex + 1}`}</h2>
+              <h2 className="font-heading text-base font-semibold uppercase tracking-[0.1em]">{`Day ${activeIndex + 1}`}</h2>
               <span className="text-xs text-muted-foreground tabular-nums">
                 {target != null
                   ? `${active.miles} of ${target} mi target`
@@ -287,7 +286,7 @@ export function DaysView({
 
             {active.legs.length === 0 ? (
               <div className="flex flex-col items-start gap-3 rounded-xl border p-4">
-                <p className="text-sm font-semibold">{`Nothing on Day ${activeIndex + 1} yet.`}</p>
+                <p className="font-serif text-base">{`Nothing on Day ${activeIndex + 1} yet.`}</p>
                 <p className="text-sm text-muted-foreground">
                   Pull roads and stops straight off the map; they land here in ride order.
                 </p>
@@ -353,6 +352,8 @@ export function DaysView({
           </section>
         </div>
       )}
+        </div>
+      </div>
 
       <TrayDock
         regionSlug={regionSlug}

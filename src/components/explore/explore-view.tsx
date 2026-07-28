@@ -378,13 +378,17 @@ export function ExploreView({
     ? `${route.name ?? "Your route"} · ${Math.round(route.lengthMi)} mi`
     : null;
 
-  // w-full on the page container matters: the body is a column flex and
-  // mx-auto makes this a fit-content flex item, so without an explicit width
-  // the page collapses to its widest child instead of filling to max-w-7xl.
+  // Full-viewport working surface inside the app shell: the left panel owns
+  // the scroll on desktop, the map fills everything else edge to edge, and
+  // the tray dock pins across the full width below both.
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[400px_minmax(0,1fr)]">
+        <aside className="flex min-w-0 flex-col gap-4 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-r">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-lg font-semibold">{regionName}</h1>
+        <h1 className="font-heading text-base font-bold uppercase tracking-[0.22em]">
+          {regionName}
+        </h1>
         {routeMode ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">{routeLabel}</span>
@@ -404,13 +408,17 @@ export function ExploreView({
           a line browse exactly as today. */}
       {!entryOpen && !routeActive && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-          <p className="text-sm">
-            <span className="font-semibold">Riding through?</span>{" "}
-            <span className="text-muted-foreground">
+          <p className="font-serif text-base leading-snug">
+            <span className="font-medium">Riding through?</span>{" "}
+            <span className="italic text-muted-foreground">
               Drop your route and see what&apos;s worth pulling over for.
             </span>
           </p>
-          <Button size="sm" onClick={() => setEntry(FRESH_ENTRY)}>
+          <Button
+            size="sm"
+            className="bg-brand text-brand-foreground hover:bg-brand/90"
+            onClick={() => setEntry(FRESH_ENTRY)}
+          >
             Drop your route
           </Button>
         </div>
@@ -449,11 +457,7 @@ export function ExploreView({
         />
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
-        <div
-          ref={listRef}
-          className="flex flex-col gap-3 lg:max-h-[calc(100vh-14rem)] lg:overflow-y-auto lg:pr-1"
-        >
+        <div ref={listRef} className="flex flex-col gap-3">
           {entryOpen ? (
             <RouteEntry
               status={entry.status === "tapping" ? "tapping" : entry.status}
@@ -496,7 +500,7 @@ export function ExploreView({
                 <div className="flex flex-col gap-3 rounded-xl border p-4">
                   {segmentRescue ? (
                     <>
-                      <p className="text-sm font-semibold">
+                      <p className="font-serif text-base">
                         No roads match all {activeCharacters.length} filters.
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -517,7 +521,7 @@ export function ExploreView({
                     </>
                   ) : (
                     <>
-                      <p className="text-sm font-semibold">
+                      <p className="font-serif text-base">
                         No road carries all of these at once.
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -534,7 +538,7 @@ export function ExploreView({
               ) : (
                 groupedSegments.map(([subArea, rows]) => (
                   <section key={subArea} className="flex flex-col gap-2">
-                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <h3 className="font-heading text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {subArea}
                     </h3>
                     {rows.map((s) => (
@@ -560,7 +564,7 @@ export function ExploreView({
 
               {filteredStops.length === 0 ? (
                 <div className="flex flex-col gap-3 rounded-xl border p-4">
-                  <p className="text-sm font-semibold">No open stops match these filters.</p>
+                  <p className="font-serif text-base">No open stops match these filters.</p>
                   <p className="text-sm text-muted-foreground">
                     Nothing in{" "}
                     {activeGroups
@@ -577,7 +581,7 @@ export function ExploreView({
               ) : (
                 groupedStops.map(([label, rows]) => (
                   <section key={label} className="flex flex-col gap-2">
-                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <h3 className="font-heading text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {label}
                     </h3>
                     {rows.map((s) => (
@@ -594,8 +598,9 @@ export function ExploreView({
             </>
           )}
         </div>
+        </aside>
 
-        <div className="relative min-h-[480px] overflow-hidden rounded-xl border lg:h-[calc(100vh-14rem)]">
+        <div className="relative min-h-[480px] lg:min-h-0">
           <ExploreMap
             segments={routeMode ? segments : filteredSegments}
             stops={routeMode ? stops : filteredStops}

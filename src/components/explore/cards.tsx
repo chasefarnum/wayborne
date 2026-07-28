@@ -34,7 +34,9 @@ export function SegmentCard({
         {segment.length_mi != null && <>{segment.length_mi} mi · </>}
         {segment.character.map(characterLabel).join(" · ")}
       </span>
-      {segment.blurb && <span className="line-clamp-3 text-sm">{segment.blurb}</span>}
+      {segment.blurb && (
+        <span className="line-clamp-3 font-serif text-sm leading-relaxed">{segment.blurb}</span>
+      )}
       {segment.warnings && <Warn>{segment.warnings}</Warn>}
     </button>
   );
@@ -60,7 +62,9 @@ export function StopCard({
         {stop.town && <> · {stop.town}</>}
         {stop.rider_signal !== "none" && <> · rider signal: {stop.rider_signal.replace("_", "-")}</>}
       </span>
-      {stop.blurb && <span className="line-clamp-3 text-sm">{stop.blurb}</span>}
+      {stop.blurb && (
+        <span className="line-clamp-3 font-serif text-sm leading-relaxed">{stop.blurb}</span>
+      )}
     </button>
   );
 }
@@ -130,7 +134,7 @@ export function DetailCard({
           )}
         </p>
       )}
-      {item.blurb && <p className="text-sm">{item.blurb}</p>}
+      {item.blurb && <p className="font-serif text-[15px] leading-relaxed">{item.blurb}</p>}
       {isSegment && selected.segment.warnings && <Warn>{selected.segment.warnings}</Warn>}
       {item.seasonal_notes && <Warn>{item.seasonal_notes}</Warn>}
       {!isSegment && <Practicals practicals={selected.stop.practicals} />}
