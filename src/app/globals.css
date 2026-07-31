@@ -11,8 +11,15 @@
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --font-serif: var(--font-serif);
+  --font-display: var(--font-display-face);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-signal: var(--signal);
+  --color-bone: var(--bone);
+  --color-bone-dim: var(--bone-dim);
+  --color-rust: var(--rust);
+  --color-ground-brand: var(--ground-brand);
+  --color-panel-brand: var(--panel-brand);
   --color-shell: var(--shell);
   --color-shell-foreground: var(--shell-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -44,19 +51,24 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Radii are literal, not a scale (art direction round 4): chips and patches
+     2px, cards and buttons 3px, dock 4px. Nothing rounder than 4px exists;
+     pills are banned except genuinely circular elements. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
+  --radius-4xl: 4px;
 }
 
-/* Warm neutrals on the stone axis: asphalt and bone, never pure black or
-   white. The single accent is center-line yellow (the painted double line),
-   reserved for the shell mark and small brand moments — data colors on the
-   map own their own earth-tone range and stay untouched. */
+/* Two grounds, never mixed (design-review P1): working screens run the cool
+   near-black family; the warm stone family survives only as brand-surface
+   tokens (covers, badges, empty states — grain allowed there and only there).
+   The single system accent is paint orange #c9611e (round 4: center-line
+   yellow retired). Signal red is warnings only, never decorative. Data colors
+   on the map own their own earth-tone range and stay untouched. */
 :root {
   --background: oklch(0.985 0.001 106.423);
   --foreground: oklch(0.216 0.006 56.043);
@@ -76,16 +88,21 @@
   --border: oklch(0.923 0.003 48.717);
   --input: oklch(0.923 0.003 48.717);
   --ring: oklch(0.709 0.01 56.259);
-  --brand: oklch(0.83 0.16 84);
-  --brand-foreground: oklch(0.147 0.004 49.25);
-  --shell: oklch(0.147 0.004 49.25);
-  --shell-foreground: oklch(0.985 0.001 106.423);
+  --brand: oklch(0.609 0.152 48.21); /* #c9611e paint orange */
+  --brand-foreground: oklch(0.145 0.002 286.13); /* #0a0a0b */
+  --signal: oklch(0.521 0.158 29.21); /* #b23a2e */
+  --bone: oklch(0.911 0.035 82.91); /* #ede0c8 */
+  --bone-dim: oklch(0.802 0.034 83.69); /* #c9bda6 */
+  --rust: oklch(0.587 0.13 56.77); /* #b5651d */
+  --ground-brand: oklch(0.147 0.004 49.25); /* warm stone-950 */
+  --panel-brand: oklch(0.216 0.006 56.043); /* warm stone-900 */
+  --shell: oklch(0.145 0.002 286.13);
+  --shell-foreground: oklch(0.923 0.003 48.72);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
   --sidebar: oklch(0.985 0.001 106.423);
   --sidebar-foreground: oklch(0.216 0.006 56.043);
   --sidebar-primary: oklch(0.216 0.006 56.043);
@@ -96,45 +113,54 @@
   --sidebar-ring: oklch(0.709 0.01 56.259);
 }
 
-/* Dark is designed, not inverted: warm near-black base, surfaces elevate by
-   getting lighter (stone-900 cards on a stone-950 ground), off-white text,
-   and the yellow pulled down a step so it doesn't vibrate. */
+/* The live theme (the app is dark-first): the board 06 cool family. Ground
+   #0a0a0b, panels #141416, hairlines #232326, text #e7e5e4, dim #8e8e93 —
+   cooler and more neutral than the retired warm stone, so the working UI
+   reads current while the heritage ink stays rationed. No grain here, ever. */
 .dark {
-  --background: oklch(0.147 0.004 49.25);
-  --foreground: oklch(0.97 0.001 106.424);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.97 0.001 106.424);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.97 0.001 106.424);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.97 0.001 106.424);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.97 0.001 106.424);
+  --background: oklch(0.145 0.002 286.13); /* #0a0a0b */
+  --foreground: oklch(0.923 0.003 48.72); /* #e7e5e4 */
+  --card: oklch(0.192 0.004 286.02); /* #141416 */
+  --card-foreground: oklch(0.923 0.003 48.72);
+  --popover: oklch(0.192 0.004 286.02);
+  --popover-foreground: oklch(0.923 0.003 48.72);
+  --primary: oklch(0.923 0.003 48.72);
+  --primary-foreground: oklch(0.145 0.002 286.13);
+  --secondary: oklch(0.169 0.002 286.18); /* #0f0f10 */
+  --secondary-foreground: oklch(0.923 0.003 48.72);
+  --muted: oklch(0.169 0.002 286.18);
+  --muted-foreground: oklch(0.648 0.007 286.19); /* #8e8e93 */
+  --accent: oklch(0.192 0.004 286.02);
+  --accent-foreground: oklch(0.923 0.003 48.72);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0.001 106 / 10%);
-  --input: oklch(1 0.001 106 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --brand: oklch(0.79 0.145 84);
-  --brand-foreground: oklch(0.147 0.004 49.25);
-  --shell: oklch(0.147 0.004 49.25);
-  --shell-foreground: oklch(0.97 0.001 106.424);
+  --border: oklch(0.257 0.006 286); /* #232326 */
+  --input: oklch(0.257 0.006 286);
+  --ring: oklch(0.648 0.007 286.19);
+  --brand: oklch(0.609 0.152 48.21); /* #c9611e paint orange */
+  --brand-foreground: oklch(0.145 0.002 286.13);
+  /* Signal lifts a step on dark ground (#cf6152) so 12px warning text clears
+     WCAG 4.5:1 on panels; the canonical #b23a2e stays the light-mode value. */
+  --signal: oklch(0.624 0.143 29.61); /* #cf6152 */
+  --bone: oklch(0.911 0.035 82.91);
+  --bone-dim: oklch(0.802 0.034 83.69);
+  --rust: oklch(0.587 0.13 56.77);
+  --ground-brand: oklch(0.147 0.004 49.25);
+  --panel-brand: oklch(0.216 0.006 56.043);
+  --shell: oklch(0.145 0.002 286.13);
+  --shell-foreground: oklch(0.923 0.003 48.72);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.97 0.001 106.424);
-  --sidebar-primary: oklch(0.923 0.003 48.717);
-  --sidebar-primary-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.97 0.001 106.424);
-  --sidebar-border: oklch(1 0.001 106 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+  --sidebar: oklch(0.192 0.004 286.02);
+  --sidebar-foreground: oklch(0.923 0.003 48.72);
+  --sidebar-primary: oklch(0.923 0.003 48.72);
+  --sidebar-primary-foreground: oklch(0.145 0.002 286.13);
+  --sidebar-accent: oklch(0.169 0.002 286.18);
+  --sidebar-accent-foreground: oklch(0.923 0.003 48.72);
+  --sidebar-border: oklch(0.257 0.006 286);
+  --sidebar-ring: oklch(0.648 0.007 286.19);
 }
 
 @layer base {
@@ -155,8 +181,90 @@
   }
 }
 
-/* Fine photographic grain for the shell only — the grit is a texture, not a
-   color. SVG turbulence at whisper opacity; anything louder reads as dirt. */
+/* Fine photographic grain — brand surfaces only (covers, badges, sky plates).
+   Working surfaces never carry it: the grit is heritage ink and the budget
+   is three touches per screen. */
 .texture-grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* Tank-panel logic (board 06 rail cards): hairline border with an inset
+   bone hairline that warms toward paint orange on hover. CSS-only; the
+   card's layout and behavior are untouched. */
+.panel-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.panel-card::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid oklch(0.911 0.035 82.91 / 0.14);
+  border-radius: 1px;
+  pointer-events: none;
+  transition: border-color 0.2s;
+}
+.panel-card:hover {
+  border-color: oklch(0.35 0.007 286.04); /* #3a3a3e */
+}
+.panel-card:hover::before {
+  border-color: oklch(0.609 0.152 48.21 / 0.5);
+}
+
+/* Banner ribbon (board 04): bone band with rust swallow-tail ends. Day-leg
+   headers wear it — the days view's one added heritage touch. */
+.day-ribbon {
+  position: relative;
+  display: inline-block;
+}
+.day-ribbon-band {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  background: var(--bone);
+  color: var(--ground-brand);
+  padding: 6px 20px;
+}
+.day-ribbon-end {
+  position: absolute;
+  top: 6px;
+  width: 22px;
+  height: 100%;
+  background: var(--rust);
+}
+.day-ribbon-end-l {
+  left: -14px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 8px 50%);
+}
+.day-ribbon-end-r {
+  right: -14px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%);
+}
+
+/* Mann sky plate (empty and loading states, region covers later): dusk
+   gradient from the board's cover — crushed black down through burnt orange
+   to the horizon glow. A brand surface: grain allowed, serif-italic voice,
+   never mixed with the cool working family on the same surface. */
+.sky-mann {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    #16130f 0%,
+    #3a2415 42%,
+    #8a4a1c 68%,
+    #c9611e 84%,
+    #e8912f 100%
+  );
+}
+/* Grain is part of the plate (a separate background-image would override the
+   gradient), drawn as an overlay so it can't leak onto working surfaces. */
+.sky-mann::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
 }

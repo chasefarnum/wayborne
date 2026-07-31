@@ -7,9 +7,10 @@ import { Fragment, useCallback, useMemo } from "react";
 import { FrameSheet } from "@/components/frame/frame-sheet";
 import { TrayDock } from "@/components/trip/tray-dock";
 import { useTrip } from "@/components/trip/trip-provider";
-import { Badge } from "@/components/ui/badge";
+import { PatchChip } from "@/components/patch-chip";
+import { DayRibbon } from "@/components/trip/day-ribbon";
 import { Button } from "@/components/ui/button";
-import { Warn, WarnFlag } from "@/components/warn";
+import { Warn, WarnChip, WarnFlag } from "@/components/warn";
 import { CATEGORY_LABELS, characterLabel } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
 import { buildDayGpx, gpxFileName, lineOf, pointOf } from "@/lib/gpx";
@@ -267,8 +268,10 @@ export function DaysView({
           </nav>
 
           <section className="flex flex-col gap-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-heading text-base font-semibold uppercase tracking-[0.1em]">{`Day ${activeIndex + 1}`}</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="ml-3.5">
+                <DayRibbon>{`Day ${activeIndex + 1}`}</DayRibbon>
+              </h2>
               <span className="text-xs text-muted-foreground tabular-nums">
                 {target != null
                   ? `${active.miles} of ${target} mi target`
@@ -410,7 +413,7 @@ function LegRow({
           {item.name}
         </p>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Badge variant="outline">{item.provenance}</Badge>
+          <PatchChip provenance={item.provenance} />
           <Button
             variant="ghost"
             size="icon-xs"
@@ -449,8 +452,8 @@ function LegRow({
           {`Fuel gap: at least ${fuelGap.miles} mi of road from here to the next planned stop. Top off before this run.`}
         </Warn>
       )}
-      {isSegment && leg.segment.warnings && <Warn>{leg.segment.warnings}</Warn>}
-      {item.seasonal_notes && <Warn>{item.seasonal_notes}</Warn>}
+      {isSegment && leg.segment.warnings && <WarnChip>{leg.segment.warnings}</WarnChip>}
+      {item.seasonal_notes && <WarnChip>{item.seasonal_notes}</WarnChip>}
     </div>
   );
 }

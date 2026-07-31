@@ -8,12 +8,13 @@ import { AlongRouteList, IntentChips } from "@/components/explore/along-route";
 import { DetailCard, SegmentCard, StopCard } from "@/components/explore/cards";
 import { FilterChips } from "@/components/explore/filter-chips";
 import { RouteEntry } from "@/components/explore/route-entry";
+import { CompassStamp } from "@/components/frame/logo";
 import { FrameSheet } from "@/components/frame/frame-sheet";
 import { VerifyProgress } from "@/components/explore/verify-progress";
+import { SkyPlate } from "@/components/sky-plate";
 import { TrayDock } from "@/components/trip/tray-dock";
 import { useTrip } from "@/components/trip/trip-provider";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CHARACTER_TAGS, STOP_GROUPS, characterLabel, stopGroupOf } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
 import { contentNearRoute } from "@/lib/region-content.client";
@@ -36,11 +37,13 @@ import { useRoute } from "@/lib/use-route";
 const ExploreMap = dynamic(() => import("@/components/explore/explore-map"), {
   ssr: false,
   loading: () => (
-    <div className="relative h-full min-h-[480px]">
-      <Skeleton className="absolute inset-0 rounded-none motion-reduce:animate-none" />
-      <p className="absolute bottom-4 left-4 rounded-md bg-background/90 px-3 py-1.5 text-sm text-muted-foreground">
-        Loading the map…
-      </p>
+    // A named ceremony moment (review P2): the map loads behind a Mann sky
+    // plate instead of a bare skeleton.
+    <div className="sky-mann relative h-full min-h-[480px]">
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-bone">
+        <CompassStamp size={32} className="text-bone/80" />
+        <p className="font-serif text-base italic">Loading the map…</p>
+      </div>
     </div>
   ),
 });
@@ -68,12 +71,14 @@ type CorridorState = { status: "loading" | "error" | "ready"; rows: CorridorRow[
 export function ExploreView({
   regionSlug,
   regionName,
+  regionNumber,
   regionId,
   segments,
   stops,
 }: {
   regionSlug: string;
   regionName: string;
+  regionNumber: number;
   regionId: string;
   segments: SegmentRow[];
   stops: StopRow[];
@@ -386,9 +391,10 @@ export function ExploreView({
       <div className="grid min-h-0 flex-1 lg:grid-cols-[400px_minmax(0,1fr)]">
         <aside className="flex min-w-0 flex-col gap-4 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-r">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="font-heading text-base font-bold uppercase tracking-[0.22em]">
-          {regionName}
-        </h1>
+        {/* The map masthead is the visual region title (board 06: the rail
+            carries search and cards, no title); this stays for the document
+            outline and screen readers. */}
+        <h1 className="sr-only">{regionName}</h1>
         {routeMode ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">{routeLabel}</span>
@@ -497,13 +503,13 @@ export function ExploreView({
               </div>
 
               {filteredSegments.length === 0 ? (
-                <div className="flex flex-col gap-3 rounded-xl border p-4">
+                <SkyPlate>
                   {segmentRescue ? (
                     <>
-                      <p className="font-serif text-base">
+                      <p className="font-serif text-base italic">
                         No roads match all {activeCharacters.length} filters.
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-bone-dim">
                         Dropping {characterLabel(segmentRescue.tag as never)} brings back{" "}
                         {segmentRescue.count} {segmentRescue.count === 1 ? "road" : "roads"}.
                       </p>
@@ -521,10 +527,10 @@ export function ExploreView({
                     </>
                   ) : (
                     <>
-                      <p className="font-serif text-base">
+                      <p className="font-serif text-base italic">
                         No road carries all of these at once.
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-bone-dim">
                         Clear the filters and start from the region&apos;s full list.
                       </p>
                       <div>
@@ -534,7 +540,7 @@ export function ExploreView({
                       </div>
                     </>
                   )}
-                </div>
+                </SkyPlate>
               ) : (
                 groupedSegments.map(([subArea, rows]) => (
                   <section key={subArea} className="flex flex-col gap-2">
@@ -563,9 +569,11 @@ export function ExploreView({
               </div>
 
               {filteredStops.length === 0 ? (
-                <div className="flex flex-col gap-3 rounded-xl border p-4">
-                  <p className="font-serif text-base">No open stops match these filters.</p>
-                  <p className="text-sm text-muted-foreground">
+                <SkyPlate>
+                  <p className="font-serif text-base italic">
+                    No open stops match these filters.
+                  </p>
+                  <p className="text-sm text-bone-dim">
                     Nothing in{" "}
                     {activeGroups
                       .map((g) => STOP_GROUPS.find((sg) => sg.value === g)?.label ?? g)
@@ -577,7 +585,7 @@ export function ExploreView({
                       Clear stop filters
                     </Button>
                   </div>
-                </div>
+                </SkyPlate>
               ) : (
                 groupedStops.map(([label, rows]) => (
                   <section key={label} className="flex flex-col gap-2">
@@ -601,6 +609,17 @@ export function ExploreView({
         </aside>
 
         <div className="relative min-h-[480px] lg:min-h-0">
+          {/* The region masthead: the screen's one display-face touch
+              (heritage budget: double line, masthead, patches — at cap).
+              Decorative; the rail h1 remains the accessible page heading. */}
+          <div aria-hidden="true" className="pointer-events-none absolute left-5 top-4 z-10">
+            <p className="font-heading text-[10px] font-bold uppercase tracking-[0.35em] text-rust">
+              Region {String(regionNumber).padStart(2, "0")}
+            </p>
+            <p className="mt-1 font-display text-3xl uppercase leading-none text-bone [text-shadow:2px_2px_0_rgba(0,0,0,0.6)]">
+              {regionName}
+            </p>
+          </div>
           <ExploreMap
             segments={routeMode ? segments : filteredSegments}
             stops={routeMode ? stops : filteredStops}

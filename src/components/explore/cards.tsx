@@ -1,16 +1,16 @@
 "use client";
 
+import { PatchChip } from "@/components/patch-chip";
 import { useTrip } from "@/components/trip/trip-provider";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Warn } from "@/components/warn";
+import { WarnChip } from "@/components/warn";
 import { CATEGORY_LABELS, characterLabel } from "@/lib/explore";
 import type { SegmentRow, StopRow } from "@/lib/explore";
 import { cn } from "@/lib/utils";
 
 function cardClasses(selected: boolean) {
   return cn(
-    "flex w-full flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors hover:bg-accent",
+    "panel-card flex w-full flex-col items-start gap-1 p-4 text-left transition-colors",
     selected && "border-foreground"
   );
 }
@@ -28,7 +28,7 @@ export function SegmentCard({
     <button type="button" onClick={onSelectAction} aria-pressed={selected} className={cardClasses(selected)}>
       <span className="flex w-full items-center justify-between gap-2">
         <span className="font-semibold">{segment.name}</span>
-        <Badge variant="outline">{segment.provenance}</Badge>
+        <PatchChip provenance={segment.provenance} />
       </span>
       <span className="text-xs text-muted-foreground">
         {segment.length_mi != null && <>{segment.length_mi} mi · </>}
@@ -37,7 +37,7 @@ export function SegmentCard({
       {segment.blurb && (
         <span className="line-clamp-3 font-serif text-sm leading-relaxed">{segment.blurb}</span>
       )}
-      {segment.warnings && <Warn>{segment.warnings}</Warn>}
+      {segment.warnings && <WarnChip>{segment.warnings}</WarnChip>}
     </button>
   );
 }
@@ -55,7 +55,7 @@ export function StopCard({
     <button type="button" onClick={onSelectAction} aria-pressed={selected} className={cardClasses(selected)}>
       <span className="flex w-full items-center justify-between gap-2">
         <span className="font-semibold">{stop.name}</span>
-        <Badge variant="outline">{stop.provenance}</Badge>
+        <PatchChip provenance={stop.provenance} />
       </span>
       <span className="text-xs text-muted-foreground">
         {CATEGORY_LABELS[stop.category]}
@@ -111,7 +111,7 @@ export function DetailCard({
       <div className="flex items-start justify-between gap-2">
         <p className="font-semibold">{item.name}</p>
         <div className="flex items-center gap-1.5">
-          <Badge variant="outline">{item.provenance}</Badge>
+          <PatchChip provenance={item.provenance} />
           <Button variant="ghost" size="sm" aria-label="Close details" onClick={onCloseAction}>
             ✕
           </Button>
@@ -135,8 +135,8 @@ export function DetailCard({
         </p>
       )}
       {item.blurb && <p className="font-serif text-[15px] leading-relaxed">{item.blurb}</p>}
-      {isSegment && selected.segment.warnings && <Warn>{selected.segment.warnings}</Warn>}
-      {item.seasonal_notes && <Warn>{item.seasonal_notes}</Warn>}
+      {isSegment && selected.segment.warnings && <WarnChip>{selected.segment.warnings}</WarnChip>}
+      {item.seasonal_notes && <WarnChip>{item.seasonal_notes}</WarnChip>}
       {!isSegment && <Practicals practicals={selected.stop.practicals} />}
       {sweepId != null && (
         <div className="pt-1">

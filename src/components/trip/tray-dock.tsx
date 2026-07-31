@@ -63,8 +63,11 @@ export function TrayDock({
   const count = resolved.length;
 
   return (
-    <div className="sticky bottom-0 z-20 border-t bg-background/95 px-4 py-3 backdrop-blur">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    // Floating dock (board 06): the tray lifts off the bottom edge on a
+    // translucent cool ground — 4px radius, hairline border, blur.
+    <div className="pointer-events-none sticky bottom-0 z-20 px-3 pb-3">
+      <div className="pointer-events-auto mx-auto max-w-6xl rounded-xl border bg-background/90 px-4 py-3 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex w-56 shrink-0 flex-col gap-1">
           <p className="text-sm font-semibold tabular-nums">{`Trip · ${count} ${count === 1 ? "item" : "items"}`}</p>
           {ruler.scope === "trip" && trip.frame && (
@@ -140,7 +143,7 @@ export function TrayDock({
               <span
                 key={item.id}
                 className={cn(
-                  "flex shrink-0 items-center overflow-hidden whitespace-nowrap rounded-full border text-xs",
+                  "flex shrink-0 items-center overflow-hidden whitespace-nowrap rounded-sm border text-xs",
                   item.id === selectedId && "border-foreground"
                 )}
               >
@@ -195,6 +198,7 @@ export function TrayDock({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

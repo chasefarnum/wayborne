@@ -18,8 +18,8 @@ function Chip({
       aria-pressed={active}
       onClick={onToggle}
       className={cn(
-        "rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-        active && "border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background"
+        "rounded-sm border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+        active && "border-brand bg-brand text-brand-foreground hover:bg-brand/90 hover:text-brand-foreground"
       )}
     >
       {label}

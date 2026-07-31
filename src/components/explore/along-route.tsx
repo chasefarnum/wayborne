@@ -1,7 +1,7 @@
 "use client";
 
 import { useTrip } from "@/components/trip/trip-provider";
-import { Badge } from "@/components/ui/badge";
+import { PatchChip } from "@/components/patch-chip";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS, characterLabel } from "@/lib/explore";
 import type { Enums } from "@/lib/database.types";
@@ -39,9 +39,9 @@ export function IntentChips({
               aria-pressed={isActive}
               onClick={() => onToggleAction(chip.value)}
               className={cn(
-                "rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                "rounded-sm border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
                 isActive &&
-                  "border-foreground bg-foreground text-background hover:bg-foreground/90 hover:text-background"
+                  "border-brand bg-brand text-brand-foreground hover:bg-brand/90 hover:text-brand-foreground"
               )}
             >
               {chip.label}
@@ -87,7 +87,7 @@ function CorridorRowCard({
       >
         <span className="flex w-full items-center gap-2">
           <span className="truncate font-semibold">{row.name}</span>
-          <Badge variant="outline">{row.provenance}</Badge>
+          <PatchChip provenance={row.provenance} />
         </span>
         <span className="text-xs text-muted-foreground">
           {row.item_type === "stop" ? (

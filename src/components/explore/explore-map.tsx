@@ -204,7 +204,7 @@ export default function ExploreMap({
           "circle-color": ["get", "color"],
           "circle-radius": 6,
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": "#ede0c8", // bone, never pure white
         },
       });
       map.addLayer({
@@ -219,10 +219,10 @@ export default function ExploreMap({
         type: "circle",
         source: "route-points",
         paint: {
-          "circle-color": "#fafaf9",
+          "circle-color": "#c9611e", // paint orange (round 4): waypoints wear the accent
           "circle-radius": 10,
           "circle-stroke-width": 2,
-          "circle-stroke-color": "#1c1917",
+          "circle-stroke-color": "#0a0a0b",
         },
       });
       map.addLayer({
@@ -235,7 +235,7 @@ export default function ExploreMap({
           "text-font": ["Stadia Semibold"],
           "text-allow-overlap": true,
         },
-        paint: { "text-color": "#1c1917" },
+        paint: { "text-color": "#0a0a0b" },
       });
 
       for (const layer of ["segments-line", "stops-circle"]) {

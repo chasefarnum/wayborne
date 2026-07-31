@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Barlow, Geist_Mono, Source_Serif_4 } from "next/font/google";
+import { Barlow, Geist_Mono, Rye, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
 // Two voices (art direction round 2, HD-refresh benchmark): wide-tracked
@@ -25,6 +25,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Interim display face (art direction round 5): Rye carries the rally-poster
+// register at masthead and cover scale only — never UI labels, never data.
+// Chase supplies the real face later; the swap is this loader plus the
+// --font-display-face variable, no component edits.
+const rye = Rye({
+  variable: "--font-display-face",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   title: "Wayborne",
   description:
@@ -41,7 +51,7 @@ export default function RootLayout({
     // tokens remain defined for a future mode toggle.
     <html
       lang="en"
-      className={`${barlow.variable} ${sourceSerif.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${barlow.variable} ${sourceSerif.variable} ${geistMono.variable} ${rye.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

@@ -11,7 +11,7 @@ export default function PlanLoading() {
         <Skeleton className="h-7 w-56 motion-reduce:animate-none" />
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full motion-reduce:animate-none" />
+            <Skeleton key={i} className="h-8 w-24 rounded-sm motion-reduce:animate-none" />
           ))}
         </div>
         <div className="flex flex-col gap-3">
